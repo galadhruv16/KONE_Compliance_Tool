@@ -1,7 +1,7 @@
 import { createApp } from './app.js';
 import { logger } from './logging/logger.js';
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 5050;
 const app = createApp();
 
 app.listen(PORT, () => {

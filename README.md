@@ -25,8 +25,8 @@ npm install
 npm run dev
 ```
 
-The backend server runs on `http://localhost:5000`.
-Health check: `http://localhost:5000/api/v1/health`
+The backend server runs on `http://localhost:5050`.
+Health check: `http://localhost:5050/api/v1/health`
 
 ### 2. Frontend
 
@@ -36,7 +36,7 @@ npm install
 npm run dev
 ```
 
-The frontend development server runs on `http://localhost:5173`.
+The frontend development server runs on `http://localhost:5180`.
 
 ## Verification Commands
 
