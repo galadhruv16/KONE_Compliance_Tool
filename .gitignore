@@ -19,6 +19,8 @@ pids
 # Dependency directories
 node_modules/
 jspm_packages/
+test_fixtures/
+
 
 # TypeScript cache
 *.tsbuildinfo

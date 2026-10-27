@@ -54,30 +54,70 @@ Do not implement every phase in one large coding-agent request.
 - Basic tests, type checking, and linting work where configured.
 - No document-processing or comparison framework has been added prematurely.
 
-## Phase 2: Canonical Data Model
+## Phase 2: Canonical Data Model & Intermediate Evidence
 
 ### Objectives
 
-- Define the normalized representation of an extracted parameter.
-- Define source-reference structures.
-- Define comparison result types and statuses.
-- Define structured processing and error states.
+- Define the normalized representation of an extracted parameter (`ExtractedEvidence`).
+- Define source-reference structures (sheet, cell address, column header, page, section).
+- Define comparison result types, elevator grouping, and statuses.
+- Define Groq provider interface (`IGroqProvider`) and Zod validation schemas.
+- Implement hermetic `MockGroqProvider` for test isolation.
 
 ### Acceptance criteria
 
 - Types reflect `DOMAIN_RULES.md` and `API_DESIGN.md`.
-- Source traceability can be preserved.
+- Source traceability can be preserved to the cell/page level.
 - Missing, invalid, ambiguous, and incomparable values are distinguishable.
-- No arbitrary engineering tolerances or aliases are introduced.
+- Provider abstraction permits switching between Mock and real Groq without code churn.
+- No arbitrary engineering tolerances or unapproved aliases are introduced.
 
-## Phase 3: Excel TDS Extraction
+## Phase 3: Excel TDS Extraction (exceljs)
 
 ### Objectives
 
-- Accept supported Excel workbook formats.
-- Validate the uploaded workbook.
-- Extract a limited set of agreed sample parameters.
-- Preserve sheet and cell references.
+- Accept supported Excel workbook formats (`.xlsx`).
+- Validate the uploaded workbook worksheets (`1.1_PL-FL-01`, etc.).
+- Extract parameters preserving sheet names and cell coordinates.
+- Separate requirement columns from supplier confirmations and comments.
+- Preserve contextual headers and units.
+
+### Acceptance criteria
+
+- Cell references (e.g. `B14`) and sheet names are stored with extracted evidence.
+- Supplier notes or MEP comments are tagged and not conflated with customer baseline requirements.
+- Parsing failures yield descriptive errors rather than silent data loss.
+
+## Phase 4: PDF KTOC Extraction (pdf-parse)
+
+### Objectives
+
+- Extract selectable text from multi-page KTOC order PDFs.
+- Preserve page numbers and identify elevator column group boundaries.
+- Extract parameter labels, raw values, and units.
+- Associate specifications with candidate elevator tags (e.g. `C-PL01`).
+
+### Acceptance criteria
+
+- Page-level source references are preserved.
+- Grouped column associations are maintained.
+- Ambiguous multi-elevator associations are flagged.
+
+## Phase 5: Groq Semantic Interpretation Service
+
+### Objectives
+
+- Implement `GroqProvider` utilizing official `groq-sdk` with bounded requests.
+- Configure `llama-3.3-70b-versatile` with JSON schema enforcement.
+- Validate LLM outputs with Zod schemas.
+- Fall back safely to `requiresHumanReview = true` upon network timeout, rate limit, or unwhitelisted key proposal.
+- Test against synthetic evaluation fixtures using `MockGroqProvider`.
+
+### Acceptance criteria
+
+- Zero false matches: model never computes compliance or invents canonical keys.
+- Unapproved terms are routed to human review.
+- Automated tests run hermetically without requiring a live Groq API key.
 - Handle malformed and unexpected inputs.
 
 ### Acceptance criteria

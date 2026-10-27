@@ -83,32 +83,31 @@ flowchart TD
 
     FE --> API[Express API Layer]
 
-    API --> VAL[Input Validation]
+    API --> VAL[Input & MIME Validation]
     VAL --> ORCH[Comparison Orchestrator]
 
-    ORCH --> XP[Excel Parser]
-    ORCH --> PP[PDF Parser]
+    ORCH --> XP[Deterministic Excel Parser - exceljs]
+    ORCH --> PP[Deterministic PDF Parser - pdf-parse]
 
-    XP --> TE[TDS Extraction]
-    PP --> KE[KTOC Extraction]
+    XP --> TE[TDS Cell & Comment Extraction]
+    PP --> KE[KTOC Page & Column Extraction]
 
-    TE --> IR[Intermediate Representation]
+    TE --> IR[Structured Evidence Model: ExtractedEvidence]
     KE --> IR
 
-    IR --> MAP[Canonical Mapping Engine]
-    MAP --> NORM[Value Normalization Engine]
+    IR --> MAP_DEC{Approved Exact Rule?}
+    MAP_DEC -- Yes --> NORM[Deterministic Normalization Engine]
+    MAP_DEC -- No / Ambiguous --> GROQ[Groq Semantic Interpretation Service]
+    GROQ --> VLD[Zod Schema Validation & Hallucination Guard]
+    VLD --> NORM
 
-    NORM --> COMP[Comparison Engine]
-    COMP --> RES[Structured Comparison Results]
+    NORM --> COMP[Deterministic Comparison Engine]
+    COMP --> RES[Auditable Comparison Results]
 
     RES --> FE
     RES --> REP[Report Generator]
 
-    ORCH --> LOG[Structured Logging]
-    XP --> LOG
-    PP --> LOG
-    MAP --> LOG
-    COMP --> LOG
+    ORCH --> LOG[Structured Redacted Logging]
 ```
 
 ## 3.2 Architectural Decisions
@@ -118,13 +117,14 @@ flowchart TD
 | Backend architecture | Modular monolith | Small scope and low operational overhead |
 | API framework | Express | Straightforward request handling and middleware |
 | Language | TypeScript | Shared types and compile-time checks |
-| Processing | Synchronous initially | Avoid queues and background infrastructure until needed |
-| State | In-memory | No persistent order history required |
-| Mapping | Explicit dictionary and deterministic rules | Predictable and auditable behavior |
-| Comparison | Pure functions | Easy unit testing and reproducibility |
-| Reporting | Generated from structured results | Prevent discrepancies between UI and exported report |
-| Logging | Structured application logs | Diagnose failures without retaining document contents |
-| AI dependency | None required | Avoid nondeterministic compliance decisions and external data exposure |
+| Processing | Synchronous in-memory pipeline | Bounded memory usage, no unnecessary database or queue overhead |
+| State | In-memory with temp file cleanup | No persistent order history required |
+| Mapping | Hybrid: Deterministic dictionary + Groq interpretation | Predictable, auditable behavior with semantic adaptability for customer variants |
+| LLM Provider | Groq (`llama-3.3-70b-versatile` / `MockGroqProvider`) | Fast inference, structured JSON output, behind provider interface for hermetic testing |
+| Comparison | Pure deterministic functions | LLM never makes MATCH/MISMATCH compliance decisions |
+| Reporting | Generated from structured results | Audit trail tracks cell/page coordinates, normalized values, and mapping rationale |
+| Logging | Structured application logs | Redacts document content, tokens, and proprietary technical data |
+| Security Policy | Three-tier data gate | No real customer documents sent to external LLMs without authorization |
 
 ---
 

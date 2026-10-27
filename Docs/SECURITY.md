@@ -52,7 +52,23 @@ A document may contain text that looks like instructions, code, or requests to d
 
 The system must not allow document content to override application rules, modify the approved mapping dictionary, invoke external services, or trigger unrelated operations.
 
-Do not introduce an LLM-based processing component unless explicitly approved and documented.
+### 5.1 Groq LLM Security & Data Boundary Gate
+
+When integrating Groq or any hosted LLM provider:
+1. **Three-Tier Policy:**
+   - **Tier 1 (Hermetic Local Dev/Test):** Strict usage of `MockGroqProvider`. Zero outbound network packets containing document metadata.
+   - **Tier 2 (Synthetic / Redacted Fixtures):** Synthetic test documents executed with Groq API keys in sandboxed environments for benchmark validation.
+   - **Tier 3 (Production Customer Documents):** Sending actual customer TDS or KONE KTOC contents to Groq hosted infrastructure requires explicit signed data protection and legal clearance.
+2. **Untrusted Model Output Principle:**
+   - Groq output is untrusted input. Every response must pass strict Zod schema validation.
+   - Model-suggested canonical keys must be verified against the internal approved canonical whitelist. Unapproved keys are forcibly converted to `requiresHumanReview = true`.
+   - The LLM **never** determines `MATCH` or `MISMATCH`.
+3. **API Key Security:**
+   - `GROQ_API_KEY` is loaded strictly server-side from environment variables.
+   - Never expose `GROQ_API_KEY` to client-side bundles, API responses, or logs.
+4. **Prompt Injection Mitigation:**
+   - Prompts separate instructions from data using JSON serialization blocks.
+   - Bounded token limits and structured JSON mode (`response_format: { type: "json_object" }`) prevent prompt leakage or unconstrained execution.
 
 ## 6. Secrets and Configuration
 

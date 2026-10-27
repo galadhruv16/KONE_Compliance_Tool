@@ -94,6 +94,28 @@ This file prevents repeated reconsideration of settled choices and helps future 
 - **Consequences:** An unavailable or prohibited dependency must trigger an explicit blocker and an approved alternative, not a security-policy bypass.
 - **Affected documents:** `AGENTS.md`, `SECURITY.md`, `IMPLEMENTATION_PLAN.md`
 
+### DEC-007: Hybrid Groq LLM Semantic Interpretation & Provider Abstraction
+
+- **Status:** Accepted
+- **Context:** Customer TDS workbooks employ bespoke terminology, formatting, and elevator naming that differ from KONE KTOC specifications. Monolithic regex dictionary mapping is brittle, yet an LLM must not act as an ungrounded black-box compliance judge.
+- **Decision:** Implement a hybrid architecture. Deterministic parsers extract structured evidence into an intermediate model (`ExtractedEvidence`). Bounded requests are sent to a Groq-hosted LLM (`llama-3.3-70b-versatile`) strictly to interpret unmapped labels and propose canonical keys. Groq responses are validated with Zod against strict schemas. The final compliance status (`MATCH`/`MISMATCH`) is strictly computed by the deterministic comparison engine.
+- **Alternatives considered:** Pure rule-based regex engine (fails on unseen customer synonyms); end-to-end LLM document analysis (violates auditability, hallucinates dimensions, leaks confidential documents).
+- **Reasoning:** Provides semantic flexibility while guaranteeing 100% deterministic, auditable engineering decisions.
+- **Consequences:** Groq provider must sit behind an interface (`IGroqProvider`) with a hermetic `MockGroqProvider` for automated testing.
+- **Affected documents:** `SYSTEM_DESIGN.md`, `API_DESIGN.md`, `DOMAIN_RULES.md`, `TESTING.md`, `IMPLEMENTATION_PLAN.md`
+
+### DEC-008: Mandatory Three-Tier Security Gate for Hosted LLMs
+
+- **Status:** Accepted
+- **Context:** KONE elevator designs, customer tenders, and KTOC specifications contain confidential commercial and engineering IP. Transmitting real production documents to external AI endpoints poses data leakage risks.
+- **Decision:** Enforce a strict three-tier execution and security gate:
+  1. **Tier 1 (Local):** Local deterministic parsers, mock Groq provider, zero external network calls.
+  2. **Tier 2 (Synthetic / Anonymized):** Redacted, synthetic fixtures tested against Groq in non-production environments.
+  3. **Tier 3 (Production KONE Documents):** Hosted LLM transmission authorized only after signed corporate legal/data protection clearance.
+- **Reasoning:** Prevents accidental transmission of customer or KONE proprietary specifications without formal authorization.
+- **Consequences:** Production deployments default to Tier 1 mock or fallback unless explicitly configured with approved credentials and verified approval flags.
+- **Affected documents:** `SECURITY.md`, `LOGGING.md`, `IMPLEMENTATION_PLAN.md`
+
 ---
 
 ## Adding a Decision
