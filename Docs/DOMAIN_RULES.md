@@ -196,3 +196,55 @@ AI-generated suggestions are not approval.
 ## 12. Non-Negotiable Rule
 
 **When the system cannot establish that two values represent the same parameter and can be compared correctly, it must expose the uncertainty rather than manufacture a compliance result.**
+
+---
+
+## 13. Engineering Drawing Hierarchy & Dynamic Discovery Rules
+
+When comparing KTOC Order Forms against AutoCAD-exported Group PDFs, or comparing Supply-Line Drawing PDFs against Customer-Approved Drawing PDFs:
+
+### 13.1 Group & Sheet Organization
+- Engineering drawings are organized **per tower and per elevator group** (for example, a passenger group, service group, or fire group), each typically supplied as a multi-page PDF.
+- Sheet types must be identified dynamically from sheet headers and title blocks rather than fixed page indices:
+  - **`G-SHEET` (General / Specification Sheet):** Usually the initial 1–2 pages containing group summary parameters (travel height, capacity, passenger count, car dimensions, headroom, pit depth, etc.).
+  - **`I-SHEET` (Installation / Sectional Views):** Sectional views, car top/front views, shaft elevations, and exterior entrance/door views.
+  - **`LAYOUT_A_B` (A/B Detail Sheets):** Car, shaft, entrance, and component detail dimensions (front wall size, false ceiling, handrail codes, finishes, fixture layouts).
+  - **`FLOOR_CHART`:** Stop/landing schedule per elevator. A group with uniform stops may use a single combined chart, whereas groups with split zoning (e.g., 4 elevators serving all floors and 2 elevators serving reserved floors) define per-elevator stop columns or separate charts.
+
+### 13.2 Non-Deterministic Elevator & Group Naming
+- Elevator identifiers and group names vary across TDS sheets, KTOC forms, and AutoCAD drawings.
+- Never rely on hardcoded elevator prefixes (e.g., `C-`) or hardcoded sheet-to-lift alias maps.
+- Group and elevator alignment must be derived dynamically from extracted identifiers, metadata, and structural context; uncertain alignments must trigger `REVIEW_REQUIRED`.
+
+### 13.3 CAD Nomenclature & Standard-Code Differences
+- Illustrative CAD/drawing tags observed in KONE workflows (to be verified against sample project drawings before production rules are enabled):
+  - `SH`: Shaft Headroom / Overhead height
+  - `PH`: Shaft Pit Depth
+  - `CH`: Car Clear Height
+  - `BB` / `DD`: Car Width / Car Depth
+  - `WW` / `WD`: Shaft Width / Shaft Depth
+  - `LL` / `HH`: Clear Door Opening Width / Height
+  - Component & finish codes (e.g., front wall width, false ceiling code, handrail code such as `H64R`, button/fixture codes, wall/door finishes)
+- **Regional / Code-Standard Differences (e.g., IS vs. EN):** Equivalent physical elevators can list different nominal values under different codes (such as passenger count differences between IS and EN calculation standards). Do not silently equate differing numbers without an explicitly approved code-equivalence rule; surface them for verification.
+
+### 13.4 Asymmetric Local Drawing Revisions
+- Drawings undergoing local engineering adjustments before customer submission may have views shifted left/right, elements resized, abbreviations tables altered, or revision/date blocks updated.
+- Comparison logic must anchor on **sheet type, view titles, table rows/columns, and spatial callout pairs** rather than assuming identical pixel coordinates across revisions.
+
+---
+
+## 14. Drawing Revision & MS2 Material-Order Impact Gate
+
+When comparing **Supply-Line Drawing PDF (Rev 1)** against **Customer-Approved Drawing PDF** (whether annotated digitally with basic Adobe text edits or printed, handwritten, and scanned back):
+
+### 14.1 MS2 Impact Classifications
+Every detected discrepancy or customer markup must carry an explicit MS2 release impact status:
+
+| MS2 Classification | Meaning | MS2 Release Effect |
+|---|---|---|
+| `SUPPLY_LINE_IMPACT` | Change alters factory-ordered material, structural dimensions, components, or finishes (e.g., car height `CH`, button/COP/LOP model, door/wall finish, handrail, false ceiling, rated load/speed). | **Blocks MS2 (`MS2D`)** — Must notify Supply Line / Manufacturing for drawing & material order revision. |
+| `LOCAL_CONSTRUCTION_ONLY` | Change affects only local installation positioning or site/drawing notes without modifying factory BOM (e.g., relocating Landing Call Station from left side to right side of landing door using identical hardware). | **Does Not Block MS2** — Update local drawing only; safe for MS2 material order release once confirmed. |
+| `REQUIRES_ENGINEERING_REVIEW` | Handwritten/scanned markup cannot be parsed cleanly, text edit is ambiguous, or affected component lacks an approved MS2 impact rule. | **Blocks MS2 (`MS2D`)** until an engineer inspects the highlighted crop/region and confirms classification. |
+
+### 14.2 Non-Negotiable MS2 Safety Rule
+**No ambiguous edit, unreadable handwritten comment, or unmapped parameter change may ever be auto-classified as `LOCAL_CONSTRUCTION_ONLY` or `MS2_CLEAR`.** Whenever uncertainty exists, the item must block MS2 under `REQUIRES_ENGINEERING_REVIEW`.

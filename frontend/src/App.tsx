@@ -18,23 +18,23 @@ export const App: React.FC = () => {
 
   const steps: ProgressStep[] = [
     {
-      label: 'Parsing TDS Excel Worksheets',
-      detail: 'Extracting variable project elevator worksheets & cell coordinates',
+      label: 'Reading Customer TDS (Excel)',
+      detail: 'Extracting elevator requirements and parameters',
       status: processingStepIndex > 0 ? 'COMPLETED' : processingStepIndex === 0 ? 'ACTIVE' : 'PENDING',
     },
     {
-      label: 'Parsing KTOC PDF Layout & Columns',
-      detail: 'Extracting multi-page specifications & column-grouped elevator parameters',
+      label: 'Reading KTOC Order Form (PDF)',
+      detail: 'Extracting supply line specifications and dimensions',
       status: processingStepIndex > 1 ? 'COMPLETED' : processingStepIndex === 1 ? 'ACTIVE' : 'PENDING',
     },
     {
-      label: 'Semantic Normalization & Groq Interpretation',
-      detail: 'Associating customer labels and resolving provisional elevator tags',
+      label: 'Matching Elevators & Units',
+      detail: 'Aligning customer elevator tags with KONE order positions',
       status: processingStepIndex > 2 ? 'COMPLETED' : processingStepIndex === 2 ? 'ACTIVE' : 'PENDING',
     },
     {
-      label: 'Deterministic Comparison Engine',
-      detail: 'Evaluating engineering tolerances, dimensions, and capacities',
+      label: 'Comparing Specifications',
+      detail: 'Checking capacities, dimensions, and engineering tolerances',
       status: processingStepIndex >= 3 ? 'COMPLETED' : 'PENDING',
     },
   ];

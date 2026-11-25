@@ -1,19 +1,24 @@
-# KONE TDS–KTOC Compliance Tool
+# KONE TDS–KTOC & Drawing Compliance Tool
 
-Internal compliance-assistance tool for comparing customer Technical Data Sheets (TDS) against KONE KTOC order forms.
+Internal, strictly offline compliance-assistance tool for verifying KONE elevator engineering documents:
 
-## Architecture
+1. **TDS ↔ KTOC Order Form** *(Implemented Baseline)*: Compare Customer Excel TDS workbooks against KONE KTOC order PDFs.
+2. **Supply-Line Drawing ↔ Customer-Approved Drawing (Red-Pen Checklist & MS2 Gate)** *(Planned — Top Priority)*: Detect per-group and per-elevator discrepancies across `G-sheet`, `I-sheet`, `A/B`, and `Floor Chart` PDFs (including scanned/handwritten customer returns and shifted views) and classify `SUPPLY_LINE_IMPACT` vs. `LOCAL_CONSTRUCTION_ONLY` prior to Milestone 2 (`MS2`).
+3. **KTOC ↔ AutoCAD Group PDFs** *(Planned)*: Verify system-generated AutoCAD group drawing PDFs against KTOC specifications.
 
-This project is structured as a **modular monolith** with a TypeScript backend and a React frontend:
+## Architecture & Security Policy
 
-- `Docs/`: Architecture, API design, security, logging, testing, and domain documentation.
-- `backend/`: Node.js, Express, and TypeScript API server.
-- `frontend/`: React, TypeScript, and Vite single-page application.
+- **100% Local & Offline:** Zero third-party cloud APIs (`groq-sdk` scheduled for removal in Phase 5; no Gemini, OpenAI, or cloud OCR). Built to run on standard CPU-only workstations without a dedicated GPU.
+- **Modular Monolith:**
+  - `Docs/`: Architecture, PRD, API design, security, logging, testing, domain rules, decisions, and roadmap.
+  - `backend/`: Node.js, Express, and TypeScript API server.
+  - `frontend/`: React, TypeScript, and Vite single-page application.
 
 ## Prerequisites
 
 - Node.js v20+ (tested on Node v22.14.0)
 - npm v10+
+- Python 3.13+ (for planned local spatial/scanned PDF drawing extraction in Phase 6+)
 
 ## Quick Start
 
@@ -36,7 +41,7 @@ npm install
 npm run dev
 ```
 
-The frontend development server runs on `http://localhost:5180`.
+The frontend development server runs on `http://localhost:3030`.
 
 ## Verification Commands
 

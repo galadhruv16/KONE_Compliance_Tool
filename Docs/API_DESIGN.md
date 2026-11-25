@@ -92,16 +92,21 @@ API versioning is included in the URL so future incompatible changes can be intr
 
 # 4. Endpoint Overview
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `POST` | `/comparisons` | Upload both documents and execute comparison |
-| `GET` | `/comparisons/:comparisonId` | Retrieve a temporarily retained comparison result |
-| `GET` | `/comparisons/:comparisonId/report` | Download a report for a retained result |
-| `GET` | `/health` | Check application health |
+| Method | Endpoint | Status | Purpose |
+|---|---|---|---|
+| `POST` | `/compliance/compare` | Implemented (MVP) | Upload TDS Excel + KTOC PDF and execute comparison |
+| `POST` | `/comparisons` | Proposed Alias / Future | Target REST resource name for cached retrieval flows |
+| `GET` | `/comparisons/:comparisonId` | Proposed (Optional Cache) | Retrieve a temporarily retained comparison result |
+| `GET` | `/comparisons/:comparisonId/report` | Proposed (Optional Cache) | Download a report for a retained result |
+| `POST` | `/drawings/compare-revisions` | Proposed (Phase 7) | Compare Supply-Line Drawing PDF vs. Customer-Approved Drawing PDF + MS2 impact classification |
+| `POST` | `/drawings/verify-ktoc` | Proposed (Phase 9) | Compare KTOC PDF against Supply-Line AutoCAD Group Drawing PDFs |
+| `GET` | `/health` | Implemented (MVP) | Check application health |
 
-The two retrieval endpoints depend on an optional in-memory result cache. If the application is implemented without that cache, the initial comparison response can contain the full results and the frontend can generate a CSV export locally.
+The two retrieval endpoints depend on an optional in-memory result cache. If the application is implemented without that cache, the initial comparison response can contain the full results and the frontend can generate a CSV/Excel export locally.
 
 No database is required for either approach.
+
+> **Note on Proposed Drawing Endpoints (Phases 7 & 9):** Exact multipart field schemas and response payloads for `/drawings/compare-revisions` and `/drawings/verify-ktoc` will be finalized after inspecting representative Supply-Line and Customer-Approved drawing PDFs in Phase 6. All drawing endpoints execute strictly offline with zero third-party API transmission (`DEC-009`) and return per-group, per-elevator findings with `SUPPLY_LINE_IMPACT`, `LOCAL_CONSTRUCTION_ONLY`, and `REQUIRES_ENGINEERING_REVIEW` MS2 classifications (`DEC-010`).
 
 ---
 

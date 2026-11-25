@@ -106,6 +106,17 @@ Verify the full flow using synthetic TDS and KTOC documents:
 
 Keep integration tests small enough to diagnose failures.
 
+### 3.6 Drawing Verification & Revision / MS2 Tests (Planned Phases 6–9)
+
+Test local drawing extraction, revision diffing, and MS2 impact classification:
+
+- Dynamic sheet detection (`G-SHEET`, `I-SHEET`, `LAYOUT_A_B`, `FLOOR_CHART`) across multi-page group PDFs without fixed page-index assumptions.
+- Shared vs. split-stop floor charts (e.g., 4 lifts serving all floors vs. 2 lifts serving selective floors).
+- Asymmetric layout resilience: shifted or resized views, modified abbreviation tables, and updated date/revision blocks must not generate false whole-page mismatches.
+- Scanned & handwritten customer-approved PDFs as well as Adobe text-edited PDFs: markup region detection, lightweight local CPU OCR extraction, and cropped visual fallback when handwriting is illegible.
+- MS2 impact rules (`SUPPLY_LINE_IMPACT` vs. `LOCAL_CONSTRUCTION_ONLY` vs. `REQUIRES_ENGINEERING_REVIEW`), ensuring ambiguous markups always block MS2.
+- Offline & resource compliance: verify zero outbound network requests during test runs and confirm peak RAM remains safe for CPU-only workstations (~30% free RAM of 16 GB).
+
 ## 4. Core Comparison Test Matrix
 
 | Scenario | Expected behavior |
@@ -121,6 +132,9 @@ Keep integration tests small enough to diagnose failures.
 | Invalid document | Appropriate request or processing error |
 | Equivalent supported units | Match after normalization |
 | Values at the approved tolerance boundary | Result follows the documented boundary rule |
+| Drawing change alters factory BOM / dimensions (`CH`, door finish, buttons) | `SUPPLY_LINE_IMPACT` (blocks MS2) |
+| Drawing change affects only site mounting position (e.g. LCS left vs. right) | `LOCAL_CONSTRUCTION_ONLY` (safe for MS2) |
+| Handwritten / scanned markup unclear or unmapped | `REQUIRES_ENGINEERING_REVIEW` (blocks MS2) |
 
 The final two cases must use actual approved conversion and tolerance rules. Do not invent numeric thresholds for tests.
 

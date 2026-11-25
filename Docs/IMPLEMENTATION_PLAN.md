@@ -36,7 +36,7 @@ Do not implement every phase in one large coding-agent request.
 - Runtime and dependency restrictions are documented.
 - No production functionality has been added prematurely.
 
-## Phase 1: Project Skeleton
+## Phase 1: Project Skeleton (Completed Baseline)
 
 ### Objectives
 
@@ -54,192 +54,134 @@ Do not implement every phase in one large coding-agent request.
 - Basic tests, type checking, and linting work where configured.
 - No document-processing or comparison framework has been added prematurely.
 
-## Phase 2: Canonical Data Model & Intermediate Evidence
+## Phase 2: Canonical Data Model & Intermediate Evidence (Completed Baseline)
 
 ### Objectives
 
 - Define the normalized representation of an extracted parameter (`ExtractedEvidence`).
 - Define source-reference structures (sheet, cell address, column header, page, section).
 - Define comparison result types, elevator grouping, and statuses.
-- Define Groq provider interface (`IGroqProvider`) and Zod validation schemas.
-- Implement hermetic `MockGroqProvider` for test isolation.
 
 ### Acceptance criteria
 
 - Types reflect `DOMAIN_RULES.md` and `API_DESIGN.md`.
 - Source traceability can be preserved to the cell/page level.
 - Missing, invalid, ambiguous, and incomparable values are distinguishable.
-- Provider abstraction permits switching between Mock and real Groq without code churn.
 - No arbitrary engineering tolerances or unapproved aliases are introduced.
 
-## Phase 3: Excel TDS Extraction (exceljs)
+## Phase 3: Excel TDS & PDF KTOC Extraction (Baseline Implemented — Hardcoded Debt Pending Phase 5)
 
 ### Objectives
 
-- Accept supported Excel workbook formats (`.xlsx`).
-- Validate the uploaded workbook worksheets (`1.1_PL-FL-01`, etc.).
-- Extract parameters preserving sheet names and cell coordinates.
-- Separate requirement columns from supplier confirmations and comments.
-- Preserve contextual headers and units.
-
-### Acceptance criteria
-
-- Cell references (e.g. `B14`) and sheet names are stored with extracted evidence.
-- Supplier notes or MEP comments are tagged and not conflated with customer baseline requirements.
-- Parsing failures yield descriptive errors rather than silent data loss.
-
-## Phase 4: PDF KTOC Extraction (pdf-parse)
-
-### Objectives
-
-- Extract selectable text from multi-page KTOC order PDFs.
-- Preserve page numbers and identify elevator column group boundaries.
-- Extract parameter labels, raw values, and units.
-- Associate specifications with candidate elevator tags (e.g. `C-PL01`).
-
-### Acceptance criteria
-
-- Page-level source references are preserved.
-- Grouped column associations are maintained.
-- Ambiguous multi-elevator associations are flagged.
-
-## Phase 5: Groq Semantic Interpretation Service
-
-### Objectives
-
-- Implement `GroqProvider` utilizing official `groq-sdk` with bounded requests.
-- Configure `llama-3.3-70b-versatile` with JSON schema enforcement.
-- Validate LLM outputs with Zod schemas.
-- Fall back safely to `requiresHumanReview = true` upon network timeout, rate limit, or unwhitelisted key proposal.
-- Test against synthetic evaluation fixtures using `MockGroqProvider`.
-
-### Acceptance criteria
-
-- Zero false matches: model never computes compliance or invents canonical keys.
-- Unapproved terms are routed to human review.
-- Automated tests run hermetically without requiring a live Groq API key.
-- Handle malformed and unexpected inputs.
+- Accept supported Excel workbook formats (`.xlsx`) and text-based KTOC PDFs (`.pdf`).
+- Extract elevator specifications preserving sheet names, cell coordinates, and PDF page/column provenance.
+- Separate customer project requirements from supplier confirmations and comments.
 
 ### Acceptance criteria
 
 - Valid synthetic fixtures are parsed correctly.
 - Invalid documents produce controlled errors.
 - Unsupported structures do not silently generate incorrect values.
-- Tests cover the supported layouts and important failure cases.
+- Tests cover supported layouts and failure cases.
 
-## Phase 4: PDF KTOC Extraction
-
-### Objectives
-
-- Accept the approved KTOC PDF format.
-- Extract the initial agreed parameter set.
-- Preserve page references.
-- Identify unsupported or ambiguous layouts.
-
-### Acceptance criteria
-
-- Synthetic PDF fixtures produce expected extraction results.
-- Corrupt or unsupported PDFs are handled safely.
-- Missing fields and extraction failures remain distinguishable.
-- OCR is not added unless required by the actual input documents and explicitly approved.
-
-## Phase 5: Mapping and Normalization
+## Phase 4: Deterministic TDS ↔ KTOC Comparison & Studio UI (Baseline Implemented)
 
 ### Objectives
 
-- Implement approved alias lookup.
-- Normalize supported values and units.
-- Reject ambiguous mappings.
-- Preserve original values and source references.
+- Compare normalized TDS and KTOC parameters deterministically.
+- Expose `POST /api/v1/compliance/compare` and render the React Studio Upload / Results Dashboard.
 
 ### Acceptance criteria
 
-- Approved aliases map deterministically.
-- Unknown aliases require review.
-- Unit conversions are tested.
-- Incompatible units cannot produce an automatic match.
-- Domain rules are documented and approved for enabled parameters.
+- Comparison engine is independent of the frontend and HTTP layer.
+- Results classify `MATCH`, `MISMATCH`, `MISSING_IN_TDS`, `MISSING_IN_KTOC`, `REVIEW_REQUIRED`, and `NOT_COMPARABLE`.
+- Source references are displayed in the UI.
 
-## Phase 6: Comparison Engine
+## Phase 5: Strictly Offline Policy Alignment & De-Hardcoding (Next Immediate Step)
 
 ### Objectives
 
-- Compare normalized TDS and KTOC parameters.
-- Apply approved comparison rules.
-- Classify missing, matching, mismatching, and review-required values.
+- Remove `groq-sdk`, `GroqProvider`, and all external cloud AI configuration per `DEC-009`.
+- Remove hardcoded dates (`29th Oct 2025`, `05.10.2026`), hardcoded lift prefixes (`C-`), hardcoded dimension overrides (`2607`), and static elevator alias maps from `MockGroqProvider`, `excel.parser.ts`, `pdf.parser.ts`, and `compliance.engine.ts`.
+- Replace hardcoded elevator matching with dynamic, document-driven discovery and explicit `REVIEW_REQUIRED` fallback for ambiguous lift pairs.
 
 ### Acceptance criteria
 
-- The engine is independent of the frontend and HTTP layer.
-- All supported statuses behave according to `DOMAIN_RULES.md`.
-- Comparison results are deterministic.
-- Tests cover tolerance boundaries and edge cases.
-- Every result retains relevant source information.
+- Zero references to `groq-sdk`, `GROQ_API_KEY`, or external third-party AI APIs remain in code or `package.json`.
+- Any project/elevator naming convention is discovered dynamically from uploaded files without hardcoded sheet-to-lift maps.
+- Existing TDS ↔ KTOC tests pass offline with zero outbound network activity.
 
-## Phase 7: API Integration
+## Phase 6: Local Drawing PDF Extractor (Vector, Scanned & Asymmetric Layouts)
 
 ### Objectives
 
-- Implement the documented upload endpoint.
-- Connect file validation, extraction, mapping, and comparison.
-- Return the documented response structure.
-- Implement consistent error handling and correlation IDs.
+- Build a 100% local, CPU-only, low-RAM extractor for multi-page elevator group drawing PDFs (`G-sheet`, `I-sheet`, `A/B` layouts, and `Floor Charts` including split-stop lift columns).
+- Support both vector Supply-Line PDFs and Customer-Approved PDFs (predominantly printed, handwritten, and scanned back, plus basic Adobe text edits).
+- Handle asymmetric local engineering shifts (shifted/resized views, modified abbreviation/revision tables) using region-anchored matching rather than naive pixel overlap.
+- Implement lightweight local CPU CV/OCR fallback with cropped markup region extraction.
 
 ### Acceptance criteria
 
-- The endpoint works with synthetic integration fixtures.
-- Response schemas match `API_DESIGN.md`.
-- Expected errors return appropriate HTTP statuses.
-- Temporary files are cleaned up after successful and failed requests.
-- No unnecessary database or background processing system is introduced.
+- Extracts sheet hierarchy, elevator groups, floor-stop matrices, and CAD nomenclature pairs from sample project PDFs.
+- Detects handwritten/scanned redline regions on customer PDFs within CPU-only and ~4 GB free RAM constraints.
+- Unreadable handwriting or shifted ambiguous regions reliably produce cropped `REVIEW_REQUIRED` items rather than false passes.
 
-## Phase 8: Frontend Integration
+## Phase 7: Drawing Revision Diff & MS2 Impact Engine ("Red-Pen Checklist")
 
 ### Objectives
 
-- Implement the two-file upload flow.
-- Display processing states.
-- Display comparison results.
-- Highlight mismatches and review-required parameters.
-- Show source references and useful errors.
+- Compare Supply-Line Drawing PDF vs. Customer-Approved Drawing PDF per group and per elevator.
+- Produce a structured discrepancy list (`Red-Pen Checklist`) preserving sheet/page/lift/coordinate provenance and cropped visual diff previews.
+- Classify every discrepancy under the MS2 gate (`SUPPLY_LINE_IMPACT`, `LOCAL_CONSTRUCTION_ONLY`, `REQUIRES_ENGINEERING_REVIEW`) using approved rules.
+- Expose `POST /api/v1/drawings/compare-revisions`.
 
 ### Acceptance criteria
 
-- The UI consumes the API rather than duplicating business logic.
-- Stale results are not shown as results for new inputs.
-- All important statuses are visually distinguishable.
-- The workflow can be demonstrated with synthetic documents.
+- Correctly surfaces per-group and per-elevator differences across `G-sheet`, `I-sheet`, `A/B`, and `Floor Charts`.
+- Never auto-clears MS2 on ambiguous, handwritten, or unmapped changes.
+- Automated tests validate `SUPPLY_LINE_IMPACT`, `LOCAL_CONSTRUCTION_ONLY`, shifted views, and scanned customer markups.
 
-## Phase 9: Reporting
+## Phase 8: Drawing Revision & MS2 UI Workflow (Stitch Cycle + Export)
 
 ### Objectives
 
-- Provide a readable comparison report or export.
-- Preserve canonical parameter names, original values, normalized values, statuses, and source references where available.
+- Add workflow mode switching in the UI while preserving existing TDS ↔ KTOC functionality.
+- Present MS2 Release Readiness status, group/elevator discrepancy filters, cropped visual markup inspection, and downloadable checklist export (CSV/Excel).
+- Note: Automatic red-pen annotation rendering onto output PDFs remains excluded until discrepancy detection is validated.
 
 ### Acceptance criteria
 
-- Exported results agree with the API response.
-- Export does not omit important statuses.
-- No unapproved document content is sent externally.
-- Reporting does not introduce unnecessary persistence.
+- Follows the approved Stitch design → MCP/design review → implementation → verification cycle.
+- All MS2 blocking and review-required items are unmistakably highlighted.
+- Exported checklist matches UI state deterministically.
 
-## Phase 10: Security and Reliability Review
+## Phase 9: KTOC Order Form ↔ Supply-Line AutoCAD Drawing Verification
 
 ### Objectives
 
-- Review upload limits and file validation.
-- Verify temporary-file cleanup.
-- Review error responses and logging.
-- Review dependency security and approved software constraints.
-- Run relevant tests and build checks.
+- Expand KTOC extraction beyond initial 13 numeric parameters to include finishes, ceiling, handrail, front wall, fixture/button codes, and stop schedules as verified against real samples.
+- Compare KTOC Order Form against Supply-Line AutoCAD Group PDFs (`G-sheet`, `I-sheet`, `A/B`, `Floor Charts`).
+- Expose `POST /api/v1/drawings/verify-ktoc` and its corresponding UI view.
 
 ### Acceptance criteria
 
-- Important error paths have been tested.
-- Sensitive information is not exposed through logs or responses.
-- Known limitations are documented.
-- No unresolved critical issues are hidden.
+- Group PDFs are matched dynamically to KTOC elevator groups.
+- Code-standard differences (e.g., IS vs. EN passenger calculations) and unmapped parameters flag `REVIEW_REQUIRED` unless explicitly covered by an approved rule.
+
+## Phase 10: Security, Memory Budget & End-to-End Validation
+
+### Objectives
+
+- Verify upload limits, MIME/magic-byte validation, and temporary-file cleanup across all workflows.
+- Verify zero outbound network calls (strict IT compliance).
+- Benchmark memory and latency on CPU-only / ~30% free RAM (~4–5 GB) using real multi-page group PDFs.
+- Run full unit, parser, API, and UI verification suites.
+
+### Acceptance criteria
+
+- Zero third-party API calls or secret exposure.
+- Peak RAM and processing time remain stable on standard KONE development laptops.
+- All documented security and testing checklists pass honestly.
 
 ## 3. Phase Completion Rule
 

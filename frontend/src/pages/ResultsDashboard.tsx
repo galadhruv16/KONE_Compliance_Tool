@@ -35,16 +35,68 @@ export const ResultsDashboard: React.FC<{
   onNewComparison: () => void;
 }> = ({ summary, elevators, onNewComparison }) => {
   const [selectedElevatorIdx, setSelectedElevatorIdx] = useState(0);
+  const [filterMode, setFilterMode] = useState<'ALL' | 'MATCH' | 'REVIEW'>('ALL');
+
   const currentElevator = elevators[selectedElevatorIdx] || elevators[0];
 
-  const getStatusBadge = (status: ParameterItem['status']) => {
+  // Helper to determine elevator status
+  const getElevatorOverallStatus = (el: ElevatorReportData) => {
+    const hasMismatch = el.parameters.some((p) => p.status === 'MISMATCH');
+    if (hasMismatch) return 'MISMATCH';
+    const hasReview = el.parameters.some((p) => p.status === 'REVIEW_REQUIRED');
+    if (hasReview) return 'REVIEW_REQUIRED';
+    return 'MATCH';
+  };
+
+  const filteredElevatorIndices = elevators
+    .map((el, idx) => ({ el, idx }))
+    .filter(({ el }) => {
+      const status = getElevatorOverallStatus(el);
+      if (filterMode === 'MATCH') return status === 'MATCH';
+      if (filterMode === 'REVIEW') return status === 'REVIEW_REQUIRED' || status === 'MISMATCH';
+      return true;
+    });
+
+  // Categorize parameters for human-friendly viewing
+  const categorizeParameters = (params: ParameterItem[]) => {
+    const categories: Record<string, ParameterItem[]> = {
+      'Capacity & Performance': [],
+      'Cabin Dimensions': [],
+      'Shaft & Clearances': [],
+      'Doors & Entrances': [],
+      'General Specifications': [],
+    };
+
+    params.forEach((p) => {
+      const key = p.canonicalKey.toLowerCase();
+      const cat = p.category.toLowerCase();
+
+      if (key.includes('capacity') || key.includes('speed') || key.includes('load') || key.includes('stops') || key.includes('travel') || cat.includes('performance') || cat.includes('capacity')) {
+        categories['Capacity & Performance'].push(p);
+      } else if (key.includes('car_') || key.includes('cabin') || key.includes('ceiling') || cat.includes('dimension') || cat.includes('car')) {
+        categories['Cabin Dimensions'].push(p);
+      } else if (key.includes('shaft') || key.includes('pit') || key.includes('overhead') || cat.includes('shaft')) {
+        categories['Shaft & Clearances'].push(p);
+      } else if (key.includes('door') || key.includes('entrance') || key.includes('landing') || cat.includes('door')) {
+        categories['Doors & Entrances'].push(p);
+      } else {
+        categories['General Specifications'].push(p);
+      }
+    });
+
+    return categories;
+  };
+
+  const grouped = currentElevator ? categorizeParameters(currentElevator.parameters) : {};
+
+  const renderStatusBadge = (status: ParameterItem['status']) => {
     switch (status) {
       case 'MATCH':
-        return <span style={styles.badgeMatch}>MATCH</span>;
-      case 'MISMATCH':
-        return <span style={styles.badgeMismatch}>MISMATCH</span>;
+        return <span style={styles.badgeMatch}>Match</span>;
       case 'REVIEW_REQUIRED':
-        return <span style={styles.badgeReview}>REVIEW REQUIRED</span>;
+        return <span style={styles.badgeReview}>Needs Review</span>;
+      case 'MISMATCH':
+        return <span style={styles.badgeMismatch}>Difference</span>;
       default:
         return <span style={styles.badgeNeutral}>{status}</span>;
     }
@@ -54,159 +106,242 @@ export const ResultsDashboard: React.FC<{
     <div style={styles.container}>
       {/* Top Header */}
       <header style={styles.header}>
-        <div style={styles.headerContent}>
+        <div style={styles.headerInner}>
           <div style={styles.brandRow}>
             <img src="/assets/kone-logo.png" alt="KONE" style={styles.logo} />
             <div style={styles.divider} />
-            <div style={styles.titleBlock}>
-              <span style={styles.appTitle}>Compliance Verification Report</span>
-              <span style={styles.metaBadge}>TDS: {summary.tdsDate} | KTOC: {summary.ktocDate}</span>
+            <div>
+              <span style={styles.appTitle}>Specification Verification Results</span>
+              <span style={styles.appSubtitle}>TDS vs KTOC Compliance Comparison</span>
             </div>
           </div>
-          <div style={styles.actionButtons}>
+
+          <div style={styles.actionRow}>
             <button
               type="button"
-              style={styles.secondaryButton}
+              style={styles.secondaryBtn}
               onClick={() => window.print()}
             >
-              Export PDF
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="6 9 6 2 18 2 18 9" />
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                <rect x="6" y="14" width="12" height="8" />
+              </svg>
+              <span>Save as PDF</span>
             </button>
             <button
               type="button"
-              style={styles.primaryButton}
+              style={styles.primaryBtn}
               onClick={onNewComparison}
             >
-              New Check
+              <span>Check Another Project</span>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main style={styles.main}>
-        {/* KPI Metric Summary Row */}
-        <div style={styles.metricGrid}>
-          <div style={styles.metricCard}>
-            <span style={styles.metricLabel}>Verified Elevators</span>
-            <span style={styles.metricValue}>{summary.totalElevators} Units</span>
-          </div>
-          <div style={styles.metricCard}>
-            <span style={styles.metricLabel}>Total Parameters</span>
-            <span style={styles.metricValue}>{summary.totalParameters} Specs</span>
-          </div>
-          <div style={{ ...styles.metricCard, borderLeft: '4px solid #10B981' }}>
-            <span style={styles.metricLabel}>Compliant Matches</span>
-            <span style={{ ...styles.metricValue, color: '#10B981' }}>{summary.matches}</span>
-          </div>
-          <div style={{ ...styles.metricCard, borderLeft: '4px solid #EF4444' }}>
-            <span style={styles.metricLabel}>Discrepancies</span>
-            <span style={{ ...styles.metricValue, color: '#EF4444' }}>{summary.mismatches}</span>
-          </div>
-          <div style={{ ...styles.metricCard, borderLeft: '4px solid #F59E0B' }}>
-            <span style={styles.metricLabel}>Review Required</span>
-            <span style={{ ...styles.metricValue, color: '#F59E0B' }}>{summary.reviewRequired}</span>
-          </div>
+      {/* Summary KPI Ribbon */}
+      <div style={styles.kpiRibbon}>
+        <div style={styles.kpiCard}>
+          <span style={styles.kpiLabel}>Total Elevators</span>
+          <span style={styles.kpiValue}>{summary.totalElevators} Units</span>
         </div>
+        <div style={{ ...styles.kpiCard, borderLeft: '3px solid #059669' }}>
+          <span style={styles.kpiLabel}>Fully Matching</span>
+          <span style={{ ...styles.kpiValue, color: '#059669' }}>{summary.matches} Parameters</span>
+        </div>
+        <div style={{ ...styles.kpiCard, borderLeft: '3px solid #D97706' }}>
+          <span style={styles.kpiLabel}>Review Required</span>
+          <span style={{ ...styles.kpiValue, color: '#D97706' }}>{summary.reviewRequired} Notes</span>
+        </div>
+        <div style={styles.kpiCard}>
+          <span style={styles.kpiLabel}>Overall Assessment</span>
+          <span style={styles.kpiStatusPill}>
+            {summary.mismatches === 0 ? 'Compliant with Notes' : 'Discrepancies Detected'}
+          </span>
+        </div>
+      </div>
 
-        {/* Elevator Segmented Tabs */}
-        <div style={styles.tabsWrapper}>
-          <div style={styles.tabsHeader}>Select Elevator Locus:</div>
-          <div style={styles.tabList}>
-            {elevators.map((el, idx) => (
+      {/* Master-Detail Split Workspace */}
+      <div style={styles.workspace}>
+        {/* Left Rail: Elevator Selector */}
+        <aside style={styles.sidebar}>
+          <div style={styles.sidebarHeader}>
+            <span style={styles.sidebarTitle}>Select Elevator</span>
+            {/* Filter pills */}
+            <div style={styles.filterPillGroup}>
               <button
-                key={idx}
                 type="button"
                 style={{
-                  ...styles.tabButton,
-                  backgroundColor: selectedElevatorIdx === idx ? '#0055D4' : '#FFFFFF',
-                  color: selectedElevatorIdx === idx ? '#FFFFFF' : '#0E1E38',
-                  borderColor: selectedElevatorIdx === idx ? '#0055D4' : '#E2E8F0',
+                  ...styles.filterPill,
+                  backgroundColor: filterMode === 'ALL' ? '#0055D4' : '#FFFFFF',
+                  color: filterMode === 'ALL' ? '#FFFFFF' : '#64748B',
                 }}
-                onClick={() => setSelectedElevatorIdx(idx)}
+                onClick={() => setFilterMode('ALL')}
               >
-                <span>{el.tdsId}</span>
-                <span style={styles.tabSub}>{el.ktocId}</span>
+                All ({elevators.length})
               </button>
-            ))}
+              <button
+                type="button"
+                style={{
+                  ...styles.filterPill,
+                  backgroundColor: filterMode === 'MATCH' ? '#059669' : '#FFFFFF',
+                  color: filterMode === 'MATCH' ? '#FFFFFF' : '#64748B',
+                }}
+                onClick={() => setFilterMode('MATCH')}
+              >
+                Pass
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...styles.filterPill,
+                  backgroundColor: filterMode === 'REVIEW' ? '#D97706' : '#FFFFFF',
+                  color: filterMode === 'REVIEW' ? '#FFFFFF' : '#64748B',
+                }}
+                onClick={() => setFilterMode('REVIEW')}
+              >
+                Review
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Comparison Parameters Table */}
-        <div style={styles.tableCard}>
-          <div style={styles.tableHeaderBar}>
-            <h3 style={styles.tableTitle}>
-              Specifications for {currentElevator?.tdsId} ↔ {currentElevator?.ktocId}
-            </h3>
-            <span style={styles.tableCount}>
-              {currentElevator?.parameters.length || 0} Parameters
-            </span>
-          </div>
+          <div style={styles.elevatorList}>
+            {filteredElevatorIndices.map(({ el, idx }) => {
+              const isSelected = selectedElevatorIdx === idx;
+              const status = getElevatorOverallStatus(el);
 
-          <table style={styles.table}>
-            <thead>
-              <tr style={styles.tableHeadRow}>
-                <th style={styles.th}>Parameter</th>
-                <th style={styles.th}>Customer TDS Requirement</th>
-                <th style={styles.th}>KTOC Supply Line Order</th>
-                <th style={styles.th}>Status</th>
-                <th style={styles.th}>Provenance & Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentElevator?.parameters.map((param, pIdx) => (
-                <tr key={pIdx} style={styles.tableBodyRow}>
-                  <td style={styles.tdParam}>
-                    <div style={styles.paramName}>{param.displayName}</div>
-                    <div style={styles.paramKey}>{param.canonicalKey}</div>
-                  </td>
-                  <td style={styles.td}>
-                    <div style={styles.valText}>{param.tdsValue}</div>
-                    <div style={styles.sourceText}>{param.tdsSource}</div>
-                  </td>
-                  <td style={styles.td}>
-                    <div style={styles.valText}>{param.ktocValue}</div>
-                    <div style={styles.sourceText}>{param.ktocSource}</div>
-                  </td>
-                  <td style={styles.td}>
-                    {getStatusBadge(param.status)}
-                  </td>
-                  <td style={styles.td}>
-                    <div style={styles.provenanceTag}>{param.mappingSource}</div>
-                    {param.reviewReason && (
-                      <div style={styles.reviewReasonText}>{param.reviewReason}</div>
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    ...styles.elevatorCard,
+                    backgroundColor: isSelected ? '#EFF6FF' : '#FFFFFF',
+                    borderColor: isSelected ? '#0055D4' : '#E2E8F0',
+                  }}
+                  onClick={() => setSelectedElevatorIdx(idx)}
+                >
+                  <div style={styles.elevatorCardTop}>
+                    <span style={styles.elevatorCardName}>{el.tdsId}</span>
+                    {status === 'MATCH' && (
+                      <span style={styles.cardPassBadge}>Match</span>
                     )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </main>
+                    {status === 'REVIEW_REQUIRED' && (
+                      <span style={styles.cardReviewBadge}>Review</span>
+                    )}
+                    {status === 'MISMATCH' && (
+                      <span style={styles.cardDiffBadge}>Diff</span>
+                    )}
+                  </div>
+                  <div style={styles.elevatorCardSub}>
+                    KTOC Order: {el.ktocId}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </aside>
 
-      <footer style={styles.footer}>
-        <span>KONE Corporation · Global Supply Line Compliance · Internal Authorized Use Only</span>
-      </footer>
+        {/* Right Canvas: Categorized Parameter Inspection */}
+        <main style={styles.mainCanvas}>
+          {currentElevator ? (
+            <div>
+              {/* Unit Header */}
+              <div style={styles.canvasHeader}>
+                <div>
+                  <h2 style={styles.canvasTitle}>{currentElevator.tdsId}</h2>
+                  <p style={styles.canvasSub}>
+                    Cross-referenced against KTOC Order Form: <strong>{currentElevator.ktocId}</strong>
+                  </p>
+                </div>
+                <div style={styles.paramCountBadge}>
+                  {currentElevator.parameters.length} Parameters Checked
+                </div>
+              </div>
+
+              {/* Categorized Sections */}
+              {Object.entries(grouped).map(([categoryName, items]) => {
+                if (items.length === 0) return null;
+
+                return (
+                  <div key={categoryName} style={styles.categoryCard}>
+                    <h3 style={styles.categoryTitle}>{categoryName}</h3>
+
+                    <div style={styles.tableWrapper}>
+                      <table style={styles.table}>
+                        <thead>
+                          <tr style={styles.tableHeadRow}>
+                            <th style={styles.th}>Parameter</th>
+                            <th style={styles.th}>Customer Requirement (TDS)</th>
+                            <th style={styles.th}>KTOC Order Form</th>
+                            <th style={{ ...styles.th, textAlign: 'right' }}>Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((param, pIdx) => (
+                            <React.Fragment key={pIdx}>
+                              <tr style={styles.tableRow}>
+                                <td style={styles.tdParamName}>
+                                  {param.displayName}
+                                </td>
+                                <td style={styles.tdValue}>
+                                  {param.tdsValue}
+                                </td>
+                                <td style={styles.tdValue}>
+                                  {param.ktocValue}
+                                </td>
+                                <td style={{ ...styles.tdValue, textAlign: 'right' }}>
+                                  {renderStatusBadge(param.status)}
+                                </td>
+                              </tr>
+                              {/* Plain English explanation callout if review is needed */}
+                              {param.reviewReason && (
+                                <tr>
+                                  <td colSpan={4} style={styles.reviewNoteCell}>
+                                    <div style={styles.reviewNoteBox}>
+                                      <span style={styles.reviewNoteIcon}>ℹ️</span>
+                                      <span>{param.reviewReason}</span>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={styles.emptyPrompt}>Select an elevator to view specifications.</div>
+          )}
+        </main>
+      </div>
     </div>
   );
 };
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    minHeight: '100vh',
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: '#FAFCFF',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    color: '#0E1E38',
+    height: '100vh',
+    width: '100vw',
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
   },
   header: {
+    height: '64px',
     backgroundColor: '#FFFFFF',
     borderBottom: '1px solid #E2E8F0',
-    padding: '14px 32px',
+    flexShrink: 0,
+    zIndex: 10,
   },
-  headerContent: {
-    maxWidth: '1200px',
-    margin: '0 auto',
+  headerInner: {
+    height: '100%',
+    padding: '0 28px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -218,246 +353,322 @@ const styles: Record<string, React.CSSProperties> = {
   },
   logo: {
     height: '32px',
+    width: 'auto',
+    display: 'block',
   },
   divider: {
     width: '1px',
     height: '24px',
     backgroundColor: '#E2E8F0',
   },
-  titleBlock: {
+  appTitle: {
+    fontSize: '15px',
+    fontWeight: 700,
+    color: '#0F172A',
+    display: 'block',
+    lineHeight: '1.2',
+  },
+  appSubtitle: {
+    fontSize: '12px',
+    color: '#64748B',
+    display: 'block',
+  },
+  actionRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
   },
-  appTitle: {
-    fontSize: '15px',
-    fontWeight: 600,
-    color: '#0E1E38',
-  },
-  metaBadge: {
-    fontSize: '12px',
-    color: '#64748B',
-    backgroundColor: '#F1F5F9',
-    padding: '3px 8px',
-    borderRadius: '4px',
-  },
-  actionButtons: {
+  secondaryBtn: {
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
-  },
-  secondaryButton: {
+    gap: '8px',
     backgroundColor: '#FFFFFF',
     border: '1px solid #CBD5E1',
-    color: '#0E1E38',
-    padding: '7px 16px',
-    borderRadius: '6px',
+    color: '#334155',
     fontSize: '13px',
-    fontWeight: 500,
+    fontWeight: 600,
+    padding: '8px 16px',
+    borderRadius: '6px',
     cursor: 'pointer',
   },
-  primaryButton: {
+  primaryBtn: {
     backgroundColor: '#0055D4',
     border: 'none',
     color: '#FFFFFF',
-    padding: '7px 18px',
+    fontSize: '13px',
+    fontWeight: 600,
+    padding: '8px 18px',
     borderRadius: '6px',
-    fontSize: '13px',
-    fontWeight: 600,
     cursor: 'pointer',
   },
-  main: {
-    flex: 1,
-    maxWidth: '1200px',
-    width: '100%',
-    margin: '0 auto',
-    padding: '32px 24px',
+  kpiRibbon: {
+    height: '62px',
+    backgroundColor: '#FFFFFF',
+    borderBottom: '1px solid #E2E8F0',
     display: 'flex',
-    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '0 28px',
     gap: '24px',
+    flexShrink: 0,
   },
-  metricGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
-    gap: '16px',
-  },
-  metricCard: {
-    backgroundColor: '#FFFFFF',
-    border: '1px solid #E2E8F0',
-    borderRadius: '8px',
-    padding: '16px 20px',
+  kpiCard: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '4px 12px',
   },
-  metricLabel: {
+  kpiLabel: {
     fontSize: '12px',
+    color: '#64748B',
     fontWeight: 500,
-    color: '#64748B',
   },
-  metricValue: {
-    fontSize: '22px',
+  kpiValue: {
+    fontSize: '14px',
     fontWeight: 700,
-    color: '#0E1E38',
+    color: '#0F172A',
   },
-  tabsWrapper: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  tabsHeader: {
-    fontSize: '13px',
+  kpiStatusPill: {
+    fontSize: '12px',
     fontWeight: 600,
-    color: '#64748B',
+    backgroundColor: '#ECFDF5',
+    color: '#059669',
+    border: '1px solid #D1FAE5',
+    padding: '3px 10px',
+    borderRadius: '12px',
   },
-  tabList: {
+  workspace: {
+    flex: 1,
     display: 'flex',
-    gap: '8px',
-    overflowX: 'auto',
-    paddingBottom: '4px',
-  },
-  tabButton: {
-    border: '1px solid',
-    borderRadius: '8px',
-    padding: '8px 16px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: 600,
-    minWidth: '120px',
-  },
-  tabSub: {
-    fontSize: '11px',
-    opacity: 0.8,
-  },
-  tableCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: '10px',
-    border: '1px solid #E2E8F0',
+    height: 'calc(100vh - 64px - 62px)',
     overflow: 'hidden',
-    boxShadow: '0 2px 6px rgba(0,0,0,0.02)',
   },
-  tableHeaderBar: {
+  sidebar: {
+    width: '300px',
+    backgroundColor: '#FFFFFF',
+    borderRight: '1px solid #E2E8F0',
+    display: 'flex',
+    flexDirection: 'column',
+    flexShrink: 0,
+  },
+  sidebarHeader: {
     padding: '16px 20px',
     borderBottom: '1px solid #E2E8F0',
     display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    flexDirection: 'column',
+    gap: '10px',
   },
-  tableTitle: {
-    fontSize: '15px',
+  sidebarTitle: {
+    fontSize: '13px',
+    fontWeight: 700,
+    color: '#0F172A',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  },
+  filterPillGroup: {
+    display: 'flex',
+    backgroundColor: '#F1F5F9',
+    padding: '3px',
+    borderRadius: '8px',
+    gap: '4px',
+  },
+  filterPill: {
+    flex: 1,
+    fontSize: '11px',
     fontWeight: 600,
-    margin: 0,
-    color: '#0E1E38',
+    padding: '5px 0',
+    borderRadius: '6px',
+    border: 'none',
+    cursor: 'pointer',
+    textAlign: 'center',
+    transition: 'all 0.15s ease',
   },
-  tableCount: {
+  elevatorList: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  elevatorCard: {
+    padding: '12px 14px',
+    borderRadius: '8px',
+    border: '1px solid #E2E8F0',
+    cursor: 'pointer',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    transition: 'all 0.15s ease',
+  },
+  elevatorCardTop: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  elevatorCardName: {
+    fontSize: '14px',
+    fontWeight: 600,
+    color: '#0F172A',
+  },
+  elevatorCardSub: {
     fontSize: '12px',
     color: '#64748B',
+  },
+  cardPassBadge: {
+    fontSize: '11px',
+    fontWeight: 600,
+    color: '#059669',
+    backgroundColor: '#ECFDF5',
+    padding: '2px 8px',
+    borderRadius: '10px',
+  },
+  cardReviewBadge: {
+    fontSize: '11px',
+    fontWeight: 600,
+    color: '#D97706',
+    backgroundColor: '#FEF3C7',
+    padding: '2px 8px',
+    borderRadius: '10px',
+  },
+  cardDiffBadge: {
+    fontSize: '11px',
+    fontWeight: 600,
+    color: '#DC2626',
+    backgroundColor: '#FEE2E2',
+    padding: '2px 8px',
+    borderRadius: '10px',
+  },
+  mainCanvas: {
+    flex: 1,
+    padding: '28px 36px',
+    overflowY: 'auto',
+  },
+  canvasHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '24px',
+  },
+  canvasTitle: {
+    fontSize: '22px',
+    fontWeight: 700,
+    color: '#0F172A',
+    margin: '0 0 4px 0',
+  },
+  canvasSub: {
+    fontSize: '13px',
+    color: '#64748B',
+    margin: 0,
+  },
+  paramCountBadge: {
+    fontSize: '12px',
+    fontWeight: 600,
+    color: '#0055D4',
+    backgroundColor: '#EFF6FF',
+    border: '1px solid #DBEAFE',
+    padding: '5px 12px',
+    borderRadius: '8px',
+  },
+  categoryCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E2E8F0',
+    borderRadius: '12px',
+    padding: '20px',
+    marginBottom: '20px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+  },
+  categoryTitle: {
+    fontSize: '15px',
+    fontWeight: 700,
+    color: '#0F172A',
+    margin: '0 0 14px 0',
+  },
+  tableWrapper: {
+    overflowX: 'auto',
   },
   table: {
     width: '100%',
     borderCollapse: 'collapse',
-    textAlign: 'left',
+    fontSize: '13px',
   },
   tableHeadRow: {
     borderBottom: '1px solid #E2E8F0',
-    backgroundColor: '#FFFFFF',
   },
   th: {
-    padding: '12px 20px',
-    fontSize: '12px',
-    fontWeight: 600,
+    padding: '8px 12px',
+    textAlign: 'left',
+    fontSize: '11px',
+    fontWeight: 700,
     color: '#64748B',
     textTransform: 'uppercase',
-    letterSpacing: '0.4px',
+    letterSpacing: '0.04em',
   },
-  tableBodyRow: {
+  tableRow: {
     borderBottom: '1px solid #F1F5F9',
   },
-  tdParam: {
-    padding: '14px 20px',
-    width: '24%',
-  },
-  paramName: {
-    fontSize: '13px',
+  tdParamName: {
+    padding: '12px',
     fontWeight: 600,
-    color: '#0E1E38',
+    color: '#1E293B',
+    width: '28%',
   },
-  paramKey: {
-    fontSize: '11px',
-    color: '#94A3B8',
-    fontFamily: 'monospace',
-  },
-  td: {
-    padding: '14px 20px',
-    verticalAlign: 'top',
-  },
-  valText: {
-    fontSize: '13px',
-    fontWeight: 600,
-    color: '#0E1E38',
-  },
-  sourceText: {
-    fontSize: '11px',
-    color: '#94A3B8',
-    marginTop: '2px',
+  tdValue: {
+    padding: '12px',
+    color: '#334155',
   },
   badgeMatch: {
-    backgroundColor: '#DCFCE7',
-    color: '#15803D',
     fontSize: '11px',
-    fontWeight: 700,
+    fontWeight: 600,
+    color: '#059669',
+    backgroundColor: '#ECFDF5',
     padding: '3px 8px',
-    borderRadius: '4px',
-    display: 'inline-block',
-  },
-  badgeMismatch: {
-    backgroundColor: '#FEE2E2',
-    color: '#B91C1C',
-    fontSize: '11px',
-    fontWeight: 700,
-    padding: '3px 8px',
-    borderRadius: '4px',
+    borderRadius: '6px',
     display: 'inline-block',
   },
   badgeReview: {
-    backgroundColor: '#FEF3C7',
-    color: '#B45309',
     fontSize: '11px',
-    fontWeight: 700,
+    fontWeight: 600,
+    color: '#D97706',
+    backgroundColor: '#FEF3C7',
     padding: '3px 8px',
-    borderRadius: '4px',
+    borderRadius: '6px',
+    display: 'inline-block',
+  },
+  badgeMismatch: {
+    fontSize: '11px',
+    fontWeight: 600,
+    color: '#DC2626',
+    backgroundColor: '#FEE2E2',
+    padding: '3px 8px',
+    borderRadius: '6px',
     display: 'inline-block',
   },
   badgeNeutral: {
-    backgroundColor: '#F1F5F9',
+    fontSize: '11px',
     color: '#64748B',
-    fontSize: '11px',
-    fontWeight: 600,
-    padding: '3px 8px',
-    borderRadius: '4px',
-    display: 'inline-block',
   },
-  provenanceTag: {
-    fontSize: '11px',
-    color: '#0055D4',
-    fontWeight: 500,
+  reviewNoteCell: {
+    padding: '4px 12px 12px 12px',
   },
-  reviewReasonText: {
-    fontSize: '11px',
-    color: '#B45309',
-    marginTop: '3px',
-  },
-  footer: {
-    padding: '20px',
-    borderTop: '1px solid #E2E8F0',
-    backgroundColor: '#FFFFFF',
-    textAlign: 'center',
+  reviewNoteBox: {
+    backgroundColor: '#FFFBEB',
+    border: '1px solid #FDE68A',
+    borderRadius: '6px',
+    padding: '8px 12px',
     fontSize: '12px',
+    color: '#92400E',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  reviewNoteIcon: {
+    fontSize: '14px',
+    flexShrink: 0,
+  },
+  emptyPrompt: {
+    textAlign: 'center',
+    padding: '40px',
     color: '#94A3B8',
+    fontSize: '14px',
   },
 };

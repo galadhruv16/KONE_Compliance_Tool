@@ -4,13 +4,13 @@
 
 | Attribute | Details |
 |---|---|
-| Project Name | KONE TDS–KTOC Compliance Checker |
-| Document Version | 1.0 |
-| Status | Draft |
-| Product Type | Internal document comparison tool |
-| Primary Objective | Verify consistency between customer technical specifications and KONE ERP order specifications |
-| Input Formats | Excel (`.xlsx`) and PDF (`.pdf`) |
-| Architecture | Modular monolith |
+| Project Name | KONE TDS–KTOC & Drawing Compliance Checker |
+| Document Version | 2.0 |
+| Status | Active — Expanded Full-Lifecycle Compliance Scope |
+| Product Type | Offline internal engineering compliance tool |
+| Primary Objective | Verify consistency across TDS, KTOC order forms, Supply-Line AutoCAD group PDFs, and Customer-Approved drawings (including MS2 material-order impact gating) |
+| Input Formats | Excel (`.xlsx`, `.xls`) and PDF (`.pdf` — vector CAD, Adobe text edits, and scanned/handwritten customer markups) |
+| Architecture | Offline local modular monolith (Zero third-party cloud APIs) |
 | Persistence | No database in MVP |
 | Primary Users | Authorized KONE engineering and process-improvement personnel |
 
@@ -83,36 +83,48 @@ For safety-critical or order-critical parameters, a high overall accuracy percen
 
 ### 3.1 In Scope
 
+**Workflow 1 (Baseline Implemented): TDS ↔ KTOC Order Form**
 - Upload one Excel TDS and one KTOC PDF per comparison.
 - Validate file extensions, file sizes, and basic file readability.
-- Parse supported Excel workbook structures.
-- Extract supported technical parameters from the KTOC PDF.
+- Parse supported Excel workbook structures and KTOC order PDFs.
 - Normalize parameter names, values, and supported units.
-- Map customer-facing terminology to canonical parameter identifiers.
-- Compare corresponding parameters.
-- Classify results into matching, mismatching, missing, and review-required categories.
-- Display a summary and a detailed comparison table.
-- Provide source references such as Excel sheet/cell and PDF page.
-- Allow the user to download a comparison report.
-- Log processing events, warnings, and errors without unnecessarily exposing confidential document data.
+- Map customer-facing terminology dynamically without hardcoded project aliases.
+- Compare corresponding parameters (`MATCH`, `MISMATCH`, `MISSING_IN_TDS`, `MISSING_IN_KTOC`, `REVIEW_REQUIRED`, `NOT_COMPARABLE`).
+- Display a summary and a detailed comparison table with Excel sheet/cell and PDF page traceability.
+- Allow the user to download/export a comparison report.
+
+**Workflow 2 (Top Priority Next Scope): Supply-Line Drawing PDF ↔ Customer-Approved Drawing PDF ("Red-Pen Checklist & MS2 Gate")**
+- Upload Rev 1 Supply-Line Drawing PDF(s) (per elevator group) and the corresponding Customer-Approved / Commented Drawing PDF(s).
+- Handle both re-saved Adobe text-edited PDFs and printed, handwritten, and scanned customer returns.
+- Tolerate asymmetric local layout adjustments (shifted views left/right, resized panels, updated abbreviation/revision tables and dates) via region/sheet-anchored comparison rather than naive whole-page pixel diffing.
+- Dynamically parse sheet structures (`G-SHEET`, `I-SHEET`, `LAYOUT_A_B`, and `FLOOR_CHART` including both combined charts and split-stop columns for subset lifts).
+- Output a per-group, per-elevator structured discrepancy / red-pen checklist with source sheet/page/lift traceability and cropped visual evidence.
+- Classify every discrepancy or markup under the Milestone 2 (`MS2` / `MS2D`) gate: `SUPPLY_LINE_IMPACT`, `LOCAL_CONSTRUCTION_ONLY`, or `REQUIRES_ENGINEERING_REVIEW`.
+
+**Workflow 3 (Planned Next Scope): KTOC Order Form ↔ Supply-Line AutoCAD Drawing PDFs**
+- Upload one KTOC PDF and one or more multi-page AutoCAD Group PDFs (e.g., passenger, service, fire groups per tower).
+- Extract CAD nomenclature (`SH`, `PH`, `CH`, `BB`, `DD`, `WW`, `WD`, `LL`, `HH`, front wall, false ceiling, handrail codes, finishes, fixture codes) and floor-stop matrices.
+- Compare drawing specifications deterministically against agreed KTOC order parameters, dynamically aligning groups and elevator IDs.
+
+**Cross-Cutting Controls**
+- Operate **100% locally and offline** using free, open-source tools on CPU-only engineering workstations (~30% free RAM of 16 GB).
+- Log processing events, warnings, and errors without exposing confidential document data.
 - Clean up temporary files after processing or session termination.
 
 ### 3.2 Out of Scope
 
-The MVP will not implement:
+The application will not implement:
 
+- **Any third-party cloud APIs, external LLMs, or cloud OCR** (e.g., Groq, Gemini, OpenAI) — strictly forbidden by corporate confidentiality & IT policy (`DEC-009`).
+- Mandatory runtime dependence on GPU-heavy or large local LLMs that exceed CPU-only / limited-RAM workstation capacity.
+- Automated `.dwg` CAD file parsing (customer returns are always PDFs; PDF ↔ PDF is the unified format).
+- Automatic drawing/overlay of red-pen annotations onto output PDF files in the initial release (deferred until discrepancy detection accuracy is proven).
 - User registration, authentication, authorization, or role management.
 - A database or persistent order repository.
 - ERP integration or direct access to KTOC.
-- Automatic order modification or submission to the supply line.
-- Automatic compliance approval or release decisions.
+- Automatic order modification, MS2 release punching, or supply-line submission.
 - Multi-user collaboration or concurrent review workflows.
-- Customer or order history dashboards.
 - Automated email notifications.
-- Training a custom machine-learning model.
-- External LLM or cloud-based document processing without explicit organizational approval.
-- General-purpose OCR for arbitrary scanned documents unless required by the initial document assessment.
-- Support for every possible elevator configuration or every possible document template.
 
 ### 3.3 Scope Principle
 
@@ -397,6 +409,46 @@ The application must produce structured operational logs.
 - Each failed processing run can be investigated using its correlation identifier.
 - Logs distinguish extraction, mapping, normalization, and comparison failures.
 - A technical failure cannot be misrepresented as a compliant result.
+
+### FR-11: Drawing Group & Sheet Hierarchy Parsing (Workflows 2 & 3)
+
+The application must ingest multi-page AutoCAD-exported elevator group PDFs and customer-returned PDFs without hardcoded page indices or lift-prefix rules.
+
+**Requirements:**
+
+- Support multiple group PDFs per tower (e.g., passenger, service, fire elevator groups).
+- Dynamically classify sheets (`G-SHEET`, `I-SHEET`, `LAYOUT_A_B`, `FLOOR_CHART`) from title blocks and headers.
+- Parse both unified group floor charts and split/selective-stop floor charts where subsets of elevators skip specific floors.
+- Discover elevator identifiers and group names dynamically from document content.
+
+### FR-12: Asymmetric & Scanned Drawing Revision Diff ("Red-Pen Checklist")
+
+The application must compare Rev 1 Supply-Line Drawing PDFs against Customer-Approved Drawing PDFs to enumerate all discrepancies per group and per elevator.
+
+**Requirements:**
+
+- Support vector PDFs, basic Adobe text-edited PDFs, and printed/handwritten/scanned customer PDFs.
+- Tolerate local physical drawing adjustments (shifted views left/right, resized views, updated abbreviation tables, revision/date changes) using region-anchored comparison rather than naive full-page pixel matching.
+- Detect handwritten/redline markup regions on scanned pages locally on CPU and extract legible text via lightweight offline OCR where possible, falling back to cropped visual region inspection (`REVIEW_REQUIRED`) when handwriting is ambiguous or unreadable.
+- Output a per-group, per-elevator discrepancy checklist linking each finding to its sheet, page, elevator(s), and visual/text evidence.
+
+### FR-13: MS2 Material-Order Impact Classification
+
+Every detected change between Supply-Line and Customer-Approved drawings must be evaluated for Milestone 2 (`MS2` / `MS2D`) material-order impact.
+
+**Requirements:**
+
+- Classify each discrepancy as `SUPPLY_LINE_IMPACT` (blocks MS2; notify factory/supply line — e.g., car height `CH`, door/wall finish, button/fixture changes), `LOCAL_CONSTRUCTION_ONLY` (local drawing/site adjustment only; does not alter ordered BOM — e.g., moving landing call station from left to right of door), or `REQUIRES_ENGINEERING_REVIEW` (blocks MS2 until engineer verifies).
+- Provide an overall MS2 Readiness Verdict without auto-punching or auto-approving MS2.
+
+### FR-14: KTOC ↔ Supply-Line AutoCAD Drawing Compliance
+
+The application must compare agreed KTOC Order Form specifications against Supply-Line AutoCAD group PDFs.
+
+**Requirements:**
+
+- Parse CAD nomenclature (`SH`, `PH`, `CH`, `BB`, `DD`, `WW`, `WD`, `LL`, `HH`, front wall, false ceiling, handrail codes, finishes) and floor charts.
+- Surface code-standard differences (such as IS vs. EN passenger calculations) as explicit review items unless an approved equivalence rule is enabled.
 
 ---
 
@@ -841,6 +893,10 @@ The following items must be resolved using the actual documents and organization
 - [ ] Should report export support Excel, CSV, or both?
 - [ ] What upload size and processing-time limits are appropriate?
 - [ ] What document cleanup and retention policy is required?
+- [ ] Representative sample project documents (Supply-Line Group PDFs, handwritten/scanned Customer-Approved PDFs, and matching KTOC PDF) to validate sheet layouts and CAD nomenclature.
+- [ ] Approved KONE MS2 impact matrix defining which parameter/component categories trigger `SUPPLY_LINE_IMPACT` vs. `LOCAL_CONSTRUCTION_ONLY`.
+- [ ] Approved rule for regional code-standard differences (e.g., IS vs. EN passenger count equivalences).
+- [ ] Verified local CPU-only OCR library packaging (`RapidOCR` / `Tesseract` / `PyMuPDF`) within KONE workstation RAM limits (~30% free RAM on 16 GB).
 
 No unverified technical mapping or engineering tolerance should be promoted into a production rule merely to make the first version appear complete.
 

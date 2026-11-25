@@ -56,7 +56,7 @@ export const LandingPage: React.FC<{
         name: file.name,
         size: formatFileSize(file.size),
         isValid: false,
-        error: 'Please upload a valid KTOC Order Form PDF (.pdf)',
+        error: 'Please upload a KTOC Order Form PDF (.pdf)',
       });
       return;
     }
@@ -69,213 +69,240 @@ export const LandingPage: React.FC<{
     });
   };
 
-  const handleClear = () => {
-    setTdsState({ file: null, name: '', size: '', isValid: false });
-    setKtocState({ file: null, name: '', size: '', isValid: false });
-    if (tdsInputRef.current) tdsInputRef.current.value = '';
-    if (ktocInputRef.current) ktocInputRef.current.value = '';
-  };
-
   const canSubmit = tdsState.isValid && ktocState.isValid && tdsState.file && ktocState.file;
 
   return (
     <div style={styles.container}>
-      {/* Top Navigation */}
+      {/* Top Header */}
       <header style={styles.header}>
-        <div style={styles.headerContent}>
+        <div style={styles.headerInner}>
           <div style={styles.brandRow}>
-            <img src="/assets/kone-logo.png" alt="KONE Logo" style={styles.logo} />
+            <img src="/assets/kone-logo.png" alt="KONE" style={styles.logo} />
             <div style={styles.divider} />
-            <div style={styles.titleBlock}>
-              <span style={styles.appTitle}>TDS–KTOC Compliance Verification</span>
-              <span style={styles.versionBadge}>v0.2.0 Hybrid Engine</span>
+            <div>
+              <span style={styles.appTitle}>Specification Compliance Studio</span>
+              <span style={styles.appSubtitle}>Automated TDS ↔ KTOC Verification</span>
             </div>
           </div>
-          <div style={styles.systemStatus}>
-            <span style={styles.statusDot} />
-            <span style={styles.statusText}>System Ready</span>
+          <div style={styles.headerRight}>
+            <span style={styles.statusBadge}>Ready</span>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main style={styles.main}>
-        {/* Minimal Hero Section */}
-        <section style={styles.heroSection}>
-          <h1 style={styles.heroTitle}>Elevator Specification Verification</h1>
-          <p style={styles.heroSubtitle}>
-            Upload Customer Technical Data Sheet (Excel) and KONE KTOC Supply Line Order Form (PDF) to initiate automated, auditable compliance comparison.
-          </p>
-        </section>
-
-        {/* Dual Upload Cards */}
-        <div style={styles.uploadGrid}>
-          {/* TDS Upload Card */}
-          <div
-            style={{
-              ...styles.card,
-              borderColor: isTdsDragging ? '#0055D4' : tdsState.isValid ? '#10B981' : '#E2E8F0',
-              backgroundColor: isTdsDragging ? '#F0F7FF' : '#FFFFFF',
-            }}
-            onDragOver={(e) => { e.preventDefault(); setIsTdsDragging(true); }}
-            onDragLeave={() => setIsTdsDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setIsTdsDragging(false);
-              handleTdsFile(e.dataTransfer.files?.[0]);
-            }}
-          >
-            <div style={styles.cardHeader}>
-              <div style={styles.iconCircle}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0055D4" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="8" y1="13" x2="16" y2="13" />
-                  <line x1="8" y1="17" x2="16" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-              </div>
-              <div>
-                <h3 style={styles.cardTitle}>Customer TDS Workbook</h3>
-                <span style={styles.cardFormatBadge}>.XLSX</span>
-              </div>
+      {/* Main Split Studio Workspace */}
+      <main style={styles.workspace}>
+        {/* Left Studio Bay: Customer TDS (Excel) */}
+        <div
+          style={{
+            ...styles.bay,
+            backgroundColor: isTdsDragging ? '#F0F6FF' : '#FFFFFF',
+            borderRight: '1px solid #E2E8F0',
+          }}
+          onDragOver={(e) => { e.preventDefault(); setIsTdsDragging(true); }}
+          onDragLeave={() => setIsTdsDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsTdsDragging(false);
+            handleTdsFile(e.dataTransfer.files?.[0]);
+          }}
+        >
+          <div style={styles.bayHeader}>
+            <div style={styles.bayIconWrap}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0055D4" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="8" y1="13" x2="16" y2="13" />
+                <line x1="8" y1="17" x2="16" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
             </div>
-
-            <p style={styles.cardDesc}>
-              Technical Data Sheet with elevator worksheets (e.g. 1.1_PL-FL-01 to SHL-02) containing customer requirements and parameters.
-            </p>
-
-            <div style={styles.dropZone}>
-              {tdsState.isValid ? (
-                <div style={styles.fileSelectedBox}>
-                  <div style={styles.checkIcon}>✓</div>
-                  <div style={styles.fileDetails}>
-                    <span style={styles.fileName}>{tdsState.name}</span>
-                    <span style={styles.fileSize}>{tdsState.size}</span>
-                  </div>
-                </div>
-              ) : (
-                <div style={styles.emptyDropPrompt}>
-                  <span style={styles.dropPromptText}>Drag & drop workbook here, or</span>
-                  <button
-                    type="button"
-                    style={styles.browseButton}
-                    onClick={() => tdsInputRef.current?.click()}
-                  >
-                    Browse Excel File
-                  </button>
-                </div>
-              )}
-              {tdsState.error && <p style={styles.errorMessage}>{tdsState.error}</p>}
+            <div>
+              <div style={styles.bayStep}>DOCUMENT 01</div>
+              <h2 style={styles.bayTitle}>Customer Technical Data Sheet (TDS)</h2>
+              <p style={styles.bayDesc}>Tender specifications with customer elevator parameters (.xlsx, .xls)</p>
             </div>
-
-            <input
-              ref={tdsInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              style={{ display: 'none' }}
-              onChange={(e) => handleTdsFile(e.target.files?.[0])}
-            />
           </div>
 
-          {/* KTOC Upload Card */}
-          <div
-            style={{
-              ...styles.card,
-              borderColor: isKtocDragging ? '#0055D4' : ktocState.isValid ? '#10B981' : '#E2E8F0',
-              backgroundColor: isKtocDragging ? '#F0F7FF' : '#FFFFFF',
-            }}
-            onDragOver={(e) => { e.preventDefault(); setIsKtocDragging(true); }}
-            onDragLeave={() => setIsKtocDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setIsKtocDragging(false);
-              handleKtocFile(e.dataTransfer.files?.[0]);
-            }}
-          >
-            <div style={styles.cardHeader}>
-              <div style={styles.iconCircle}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0055D4" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-              </div>
-              <div>
-                <h3 style={styles.cardTitle}>KONE KTOC Order Form</h3>
-                <span style={styles.cardFormatBadge}>.PDF</span>
-              </div>
-            </div>
-
-            <p style={styles.cardDesc}>
-              KONE ERP-generated global supply line order form with multi-column elevator specifications and dimensional tables.
-            </p>
-
-            <div style={styles.dropZone}>
-              {ktocState.isValid ? (
-                <div style={styles.fileSelectedBox}>
-                  <div style={styles.checkIcon}>✓</div>
-                  <div style={styles.fileDetails}>
-                    <span style={styles.fileName}>{ktocState.name}</span>
-                    <span style={styles.fileSize}>{ktocState.size}</span>
-                  </div>
+          <div style={styles.bayBody}>
+            {tdsState.isValid ? (
+              <div style={styles.fileCard}>
+                <div style={styles.fileCardIconWrap}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
                 </div>
-              ) : (
-                <div style={styles.emptyDropPrompt}>
-                  <span style={styles.dropPromptText}>Drag & drop PDF here, or</span>
-                  <button
-                    type="button"
-                    style={styles.browseButton}
-                    onClick={() => ktocInputRef.current?.click()}
-                  >
-                    Browse PDF Document
-                  </button>
+                <div style={styles.fileCardDetails}>
+                  <span style={styles.fileCardName}>{tdsState.name}</span>
+                  <span style={styles.fileCardMeta}>{tdsState.size} • Ready for analysis</span>
                 </div>
-              )}
-              {ktocState.error && <p style={styles.errorMessage}>{ktocState.error}</p>}
-            </div>
-
-            <input
-              ref={ktocInputRef}
-              type="file"
-              accept=".pdf"
-              style={{ display: 'none' }}
-              onChange={(e) => handleKtocFile(e.target.files?.[0])}
-            />
+                <button
+                  type="button"
+                  style={styles.replaceBtn}
+                  onClick={() => tdsInputRef.current?.click()}
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div
+                style={{
+                  ...styles.dropZone,
+                  borderColor: isTdsDragging ? '#0055D4' : '#CBD5E1',
+                }}
+                onClick={() => tdsInputRef.current?.click()}
+              >
+                <div style={styles.dropZoneIcon}>
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.8">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                </div>
+                <p style={styles.dropZoneMainText}>
+                  Drop customer Excel file here, or <span style={styles.dropZoneHighlight}>browse</span>
+                </p>
+                <span style={styles.dropZoneSubText}>Excel spreadsheets (.xlsx or .xls)</span>
+              </div>
+            )}
+            {tdsState.error && <p style={styles.errorText}>{tdsState.error}</p>}
           </div>
+
+          <input
+            ref={tdsInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            style={{ display: 'none' }}
+            onChange={(e) => handleTdsFile(e.target.files?.[0])}
+          />
         </div>
 
-        {/* Action Controls */}
-        <div style={styles.actionRow}>
+        {/* Right Studio Bay: KONE KTOC (PDF) */}
+        <div
+          style={{
+            ...styles.bay,
+            backgroundColor: isKtocDragging ? '#F0F6FF' : '#F8FAFC',
+          }}
+          onDragOver={(e) => { e.preventDefault(); setIsKtocDragging(true); }}
+          onDragLeave={() => setIsKtocDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsKtocDragging(false);
+            handleKtocFile(e.dataTransfer.files?.[0]);
+          }}
+        >
+          <div style={styles.bayHeader}>
+            <div style={styles.bayIconWrap}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0055D4" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+            </div>
+            <div>
+              <div style={styles.bayStep}>DOCUMENT 02</div>
+              <h2 style={styles.bayTitle}>KONE KTOC Order Form</h2>
+              <p style={styles.bayDesc}>KONE supply line order form document with elevator specifications (.pdf)</p>
+            </div>
+          </div>
+
+          <div style={styles.bayBody}>
+            {ktocState.isValid ? (
+              <div style={styles.fileCard}>
+                <div style={styles.fileCardIconWrap}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                </div>
+                <div style={styles.fileCardDetails}>
+                  <span style={styles.fileCardName}>{ktocState.name}</span>
+                  <span style={styles.fileCardMeta}>{ktocState.size} • Ready for analysis</span>
+                </div>
+                <button
+                  type="button"
+                  style={styles.replaceBtn}
+                  onClick={() => ktocInputRef.current?.click()}
+                >
+                  Change
+                </button>
+              </div>
+            ) : (
+              <div
+                style={{
+                  ...styles.dropZone,
+                  borderColor: isKtocDragging ? '#0055D4' : '#CBD5E1',
+                }}
+                onClick={() => ktocInputRef.current?.click()}
+              >
+                <div style={styles.dropZoneIcon}>
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.8">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                </div>
+                <p style={styles.dropZoneMainText}>
+                  Drop KTOC Order Form PDF here, or <span style={styles.dropZoneHighlight}>browse</span>
+                </p>
+                <span style={styles.dropZoneSubText}>KTOC Order Form document (.pdf)</span>
+              </div>
+            )}
+            {ktocState.error && <p style={styles.errorText}>{ktocState.error}</p>}
+          </div>
+
+          <input
+            ref={ktocInputRef}
+            type="file"
+            accept=".pdf"
+            style={{ display: 'none' }}
+            onChange={(e) => handleKtocFile(e.target.files?.[0])}
+          />
+        </div>
+      </main>
+
+      {/* Floating Bottom Control Dock */}
+      <footer style={styles.bottomDock}>
+        <div style={styles.bottomDockContent}>
+          <div style={styles.dockStatus}>
+            {canSubmit ? (
+              <span style={styles.dockStatusSuccess}>
+                <span style={styles.statusDotGreen} />
+                Both documents staged — Ready to compare
+              </span>
+            ) : (
+              <span style={styles.dockStatusPending}>
+                <span style={styles.statusDotAmber} />
+                Please upload both documents to start verification
+              </span>
+            )}
+          </div>
+
           <button
             type="button"
-            disabled={!canSubmit}
             style={{
-              ...styles.primaryButton,
-              backgroundColor: canSubmit ? '#0055D4' : '#CBD5E1',
+              ...styles.submitBtn,
+              backgroundColor: canSubmit ? '#0055D4' : '#94A3B8',
               cursor: canSubmit ? 'pointer' : 'not-allowed',
+              opacity: canSubmit ? 1 : 0.7,
             }}
+            disabled={!canSubmit}
             onClick={() => {
               if (canSubmit && tdsState.file && ktocState.file) {
                 onStartComparison(tdsState.file, ktocState.file);
               }
             }}
           >
-            Start Compliance Verification
+            <span>Compare Specifications</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
           </button>
-          {(tdsState.file || ktocState.file) && (
-            <button type="button" style={styles.clearLink} onClick={handleClear}>
-              Reset documents
-            </button>
-          )}
         </div>
-      </main>
-
-      {/* Footer */}
-      <footer style={styles.footer}>
-        <span>KONE Corporation · Global Supply Line Compliance · Internal Authorized Use Only</span>
       </footer>
     </div>
   );
@@ -283,22 +310,23 @@ export const LandingPage: React.FC<{
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    minHeight: '100vh',
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: '#FAFCFF',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    color: '#0E1E38',
+    height: '100vh',
+    width: '100vw',
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
   },
   header: {
-    backgroundColor: '#FFFFFF',
+    height: '64px',
     borderBottom: '1px solid #E2E8F0',
-    padding: '14px 32px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+    backgroundColor: '#FFFFFF',
+    flexShrink: 0,
+    zIndex: 10,
   },
-  headerContent: {
-    maxWidth: '1120px',
-    margin: '0 auto',
+  headerInner: {
+    height: '100%',
+    padding: '0 28px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -311,229 +339,228 @@ const styles: Record<string, React.CSSProperties> = {
   logo: {
     height: '32px',
     width: 'auto',
-    objectFit: 'contain',
+    display: 'block',
   },
   divider: {
     width: '1px',
     height: '24px',
     backgroundColor: '#E2E8F0',
   },
-  titleBlock: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-  },
   appTitle: {
     fontSize: '15px',
-    fontWeight: 600,
-    color: '#0E1E38',
-    letterSpacing: '-0.2px',
+    fontWeight: 700,
+    color: '#0F172A',
+    display: 'block',
+    lineHeight: '1.2',
   },
-  versionBadge: {
-    fontSize: '11px',
-    fontWeight: 500,
-    backgroundColor: '#EEF4FF',
-    color: '#0055D4',
-    padding: '2px 8px',
-    borderRadius: '12px',
+  appSubtitle: {
+    fontSize: '12px',
+    color: '#64748B',
+    display: 'block',
   },
-  systemStatus: {
+  headerRight: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
+    gap: '12px',
   },
-  statusDot: {
+  statusBadge: {
+    fontSize: '12px',
+    fontWeight: 600,
+    color: '#059669',
+    backgroundColor: '#ECFDF5',
+    border: '1px solid #D1FAE5',
+    padding: '4px 10px',
+    borderRadius: '12px',
+  },
+  workspace: {
+    flex: 1,
+    display: 'flex',
+    height: 'calc(100vh - 64px - 76px)',
+    overflow: 'hidden',
+  },
+  bay: {
+    flex: 1,
+    padding: '36px 48px',
+    display: 'flex',
+    flexDirection: 'column',
+    overflowY: 'auto',
+    transition: 'background-color 0.2s ease',
+  },
+  bayHeader: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '16px',
+    marginBottom: '28px',
+  },
+  bayIconWrap: {
+    width: '44px',
+    height: '44px',
+    borderRadius: '10px',
+    backgroundColor: '#EFF6FF',
+    border: '1px solid #DBEAFE',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  bayStep: {
+    fontSize: '11px',
+    fontWeight: 700,
+    color: '#0055D4',
+    letterSpacing: '0.06em',
+    marginBottom: '4px',
+  },
+  bayTitle: {
+    fontSize: '18px',
+    fontWeight: 700,
+    color: '#0F172A',
+    margin: '0 0 4px 0',
+  },
+  bayDesc: {
+    fontSize: '13px',
+    color: '#64748B',
+    margin: 0,
+  },
+  bayBody: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  dropZone: {
+    flex: 1,
+    minHeight: '260px',
+    border: '2px dashed #CBD5E1',
+    borderRadius: '14px',
+    backgroundColor: '#FFFFFF',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    padding: '32px',
+    transition: 'all 0.2s ease',
+  },
+  dropZoneIcon: {
+    marginBottom: '14px',
+  },
+  dropZoneMainText: {
+    fontSize: '15px',
+    fontWeight: 500,
+    color: '#1E293B',
+    margin: '0 0 6px 0',
+  },
+  dropZoneHighlight: {
+    color: '#0055D4',
+    fontWeight: 600,
+    textDecoration: 'underline',
+  },
+  dropZoneSubText: {
+    fontSize: '12px',
+    color: '#94A3B8',
+  },
+  fileCard: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #CBD5E1',
+    borderRadius: '12px',
+    padding: '20px 24px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+  },
+  fileCardIconWrap: {
+    flexShrink: 0,
+  },
+  fileCardDetails: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+    overflow: 'hidden',
+  },
+  fileCardName: {
+    fontSize: '14px',
+    fontWeight: 600,
+    color: '#0F172A',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  fileCardMeta: {
+    fontSize: '12px',
+    color: '#64748B',
+  },
+  replaceBtn: {
+    backgroundColor: '#F1F5F9',
+    border: '1px solid #E2E8F0',
+    color: '#334155',
+    fontSize: '12px',
+    fontWeight: 600,
+    padding: '6px 14px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+  },
+  errorText: {
+    color: '#DC2626',
+    fontSize: '12px',
+    marginTop: '10px',
+  },
+  bottomDock: {
+    height: '76px',
+    borderTop: '1px solid #E2E8F0',
+    backgroundColor: '#FFFFFF',
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 36px',
+    boxShadow: '0 -2px 10px rgba(0,0,0,0.02)',
+  },
+  bottomDockContent: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dockStatus: {
+    fontSize: '13px',
+    fontWeight: 500,
+  },
+  dockStatusSuccess: {
+    color: '#059669',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  dockStatusPending: {
+    color: '#64748B',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  statusDotGreen: {
     width: '8px',
     height: '8px',
     borderRadius: '50%',
     backgroundColor: '#10B981',
+    display: 'inline-block',
   },
-  statusText: {
-    fontSize: '13px',
-    fontWeight: 500,
-    color: '#64748B',
-  },
-  main: {
-    flex: 1,
-    maxWidth: '980px',
-    margin: '0 auto',
-    width: '100%',
-    padding: '48px 24px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  heroSection: {
-    textAlign: 'center',
-    marginBottom: '40px',
-  },
-  heroTitle: {
-    fontSize: '28px',
-    fontWeight: 700,
-    color: '#0E1E38',
-    letterSpacing: '-0.5px',
-    margin: '0 0 10px 0',
-  },
-  heroSubtitle: {
-    fontSize: '15px',
-    color: '#64748B',
-    maxWidth: '620px',
-    lineHeight: '1.5',
-    margin: '0 auto',
-  },
-  uploadGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-    gap: '24px',
-    width: '100%',
-    marginBottom: '36px',
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: '12px',
-    border: '1.5px dashed #E2E8F0',
-    padding: '28px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)',
-    transition: 'all 0.2s ease',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  cardHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    marginBottom: '12px',
-  },
-  iconCircle: {
-    width: '44px',
-    height: '44px',
-    borderRadius: '10px',
-    backgroundColor: '#EEF4FF',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardTitle: {
-    fontSize: '16px',
-    fontWeight: 600,
-    color: '#0E1E38',
-    margin: '0 0 4px 0',
-  },
-  cardFormatBadge: {
-    fontSize: '11px',
-    fontWeight: 700,
-    color: '#0055D4',
-    letterSpacing: '0.5px',
-  },
-  cardDesc: {
-    fontSize: '13px',
-    color: '#64748B',
-    lineHeight: '1.45',
-    marginBottom: '20px',
-    minHeight: '38px',
-  },
-  dropZone: {
-    marginTop: 'auto',
-    borderTop: '1px solid #F1F5F9',
-    paddingTop: '16px',
-  },
-  emptyDropPrompt: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  dropPromptText: {
-    fontSize: '12px',
-    color: '#94A3B8',
-  },
-  browseButton: {
-    backgroundColor: '#F1F5F9',
-    border: '1px solid #E2E8F0',
-    borderRadius: '6px',
-    padding: '8px 16px',
-    fontSize: '13px',
-    fontWeight: 600,
-    color: '#0055D4',
-    cursor: 'pointer',
-    transition: 'background 0.15s ease',
-  },
-  fileSelectedBox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    backgroundColor: '#F0FDF4',
-    border: '1px solid #DCFCE7',
-    borderRadius: '8px',
-    padding: '12px 14px',
-  },
-  checkIcon: {
-    width: '24px',
-    height: '24px',
+  statusDotAmber: {
+    width: '8px',
+    height: '8px',
     borderRadius: '50%',
-    backgroundColor: '#10B981',
-    color: '#FFFFFF',
+    backgroundColor: '#F59E0B',
+    display: 'inline-block',
+  },
+  submitBtn: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '13px',
-    fontWeight: 700,
-    flexShrink: 0,
-  },
-  fileDetails: {
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden',
-  },
-  fileName: {
-    fontSize: '13px',
-    fontWeight: 600,
-    color: '#166534',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  fileSize: {
-    fontSize: '11px',
-    color: '#15803D',
-  },
-  errorMessage: {
-    fontSize: '12px',
-    color: '#EF4444',
-    marginTop: '8px',
-    textAlign: 'center',
-  },
-  actionRow: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '12px',
-  },
-  primaryButton: {
-    border: 'none',
+    gap: '10px',
     color: '#FFFFFF',
-    padding: '12px 36px',
-    borderRadius: '24px',
-    fontSize: '15px',
+    fontSize: '14px',
     fontWeight: 600,
-    letterSpacing: '-0.1px',
-    boxShadow: '0 2px 8px rgba(0, 85, 212, 0.25)',
-    transition: 'background-color 0.2s ease, transform 0.1s ease',
-  },
-  clearLink: {
-    background: 'none',
+    padding: '12px 28px',
+    borderRadius: '8px',
     border: 'none',
-    color: '#64748B',
-    fontSize: '13px',
-    textDecoration: 'underline',
-    cursor: 'pointer',
-  },
-  footer: {
-    padding: '20px',
-    borderTop: '1px solid #E2E8F0',
-    backgroundColor: '#FFFFFF',
-    textAlign: 'center',
-    fontSize: '12px',
-    color: '#94A3B8',
+    transition: 'background-color 0.2s ease',
   },
 };

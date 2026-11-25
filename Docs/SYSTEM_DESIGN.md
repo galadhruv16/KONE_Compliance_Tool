@@ -4,16 +4,16 @@
 
 | Attribute | Details |
 |---|---|
-| Project | KONE TDS–KTOC Compliance Checker |
-| Document Version | 1.0 |
-| Status | Proposed |
-| Architecture | Modular Monolith |
+| Project | KONE TDS–KTOC & Drawing Compliance Checker |
+| Document Version | 2.0 |
+| Status | Updated for Offline Full-Lifecycle Architecture |
+| Architecture | Offline Local Modular Monolith |
 | Frontend | React + TypeScript |
-| Backend | Node.js + Express + TypeScript |
-| Input Formats | Excel (`.xlsx`), PDF (`.pdf`) |
+| Backend | Node.js + Express + TypeScript (+ Planned Local Python Spatial/CV Worker) |
+| Input Formats | Excel (`.xlsx`, `.xls`), PDF (`.pdf` — vector CAD, Adobe edits, scanned/handwritten markups) |
 | Data Persistence | None in MVP |
-| Processing Model | Synchronous, in-memory comparison |
-| Primary Responsibility | Extract, map, normalize, compare, and report elevator specifications |
+| Processing Model | Synchronous / Local CPU-only (Zero Third-Party APIs) |
+| Primary Responsibility | Extract, normalize, compare specs & drawings, and classify MS2 material-order impact |
 
 ---
 
@@ -79,52 +79,48 @@ The frontend handles document uploads and report presentation. The backend orche
 
 ```mermaid
 flowchart TD
-    U[User] --> FE[React Frontend]
-
+    U[Engineer] --> FE[React Frontend]
     FE --> API[Express API Layer]
+    API --> VAL[Input & Magic-Byte Validation]
 
-    API --> VAL[Input & MIME Validation]
-    VAL --> ORCH[Comparison Orchestrator]
-
-    ORCH --> XP[Deterministic Excel Parser - exceljs]
-    ORCH --> PP[Deterministic PDF Parser - pdf-parse]
-
-    XP --> TE[TDS Cell & Comment Extraction]
-    PP --> KE[KTOC Page & Column Extraction]
-
-    TE --> IR[Structured Evidence Model: ExtractedEvidence]
-    KE --> IR
-
-    IR --> MAP_DEC{Approved Exact Rule?}
-    MAP_DEC -- Yes --> NORM[Deterministic Normalization Engine]
-    MAP_DEC -- No / Ambiguous --> GROQ[Groq Semantic Interpretation Service]
-    GROQ --> VLD[Zod Schema Validation & Hallucination Guard]
-    VLD --> NORM
-
+    VAL --> ORCH1[TDS-KTOC Orchestrator]
+    ORCH1 --> XP[Excel Parser - exceljs]
+    ORCH1 --> PP[KTOC PDF Parser]
+    XP --> IR[Intermediate Evidence]
+    PP --> IR
+    IR --> MAP[Dynamic Mapping + Approved Dictionary]
+    MAP --> NORM[Normalization & Unit Engine]
     NORM --> COMP[Deterministic Comparison Engine]
-    COMP --> RES[Auditable Comparison Results]
 
+    VAL --> ORCH2[Drawing Revision & KTOC-Drawing Orchestrator]
+    ORCH2 --> SP[Local Spatial PDF & Sheet Extractor - G/I/A/B/FloorCharts]
+    ORCH2 --> SC[Scanned Markup Detector & Lightweight CPU OCR Fallback]
+    SP --> ALIGN[Region-Anchored Alignment - Tolerates Shifted/Resized Views]
+    SC --> ALIGN
+    ALIGN --> DIFF[Per-Group / Per-Lift Discrepancy & MS2 Impact Engine]
+
+    COMP --> RES[Structured Results & Red-Pen Checklist]
+    DIFF --> RES
     RES --> FE
     RES --> REP[Report Generator]
-
-    ORCH --> LOG[Structured Redacted Logging]
+    ORCH1 --> LOG[Structured Redacted Logging]
+    ORCH2 --> LOG
 ```
 
 ## 3.2 Architectural Decisions
 
 | Decision | Choice | Reason |
 |---|---|---|
-| Backend architecture | Modular monolith | Small scope and low operational overhead |
+| Backend architecture | Modular monolith | Small scope, zero cloud overhead, easy offline deployment |
 | API framework | Express | Straightforward request handling and middleware |
-| Language | TypeScript | Shared types and compile-time checks |
-| Processing | Synchronous in-memory pipeline | Bounded memory usage, no unnecessary database or queue overhead |
-| State | In-memory with temp file cleanup | No persistent order history required |
-| Mapping | Hybrid: Deterministic dictionary + Groq interpretation | Predictable, auditable behavior with semantic adaptability for customer variants |
-| LLM Provider | Groq (`llama-3.3-70b-versatile` / `MockGroqProvider`) | Fast inference, structured JSON output, behind provider interface for hermetic testing |
-| Comparison | Pure deterministic functions | LLM never makes MATCH/MISMATCH compliance decisions |
-| Reporting | Generated from structured results | Audit trail tracks cell/page coordinates, normalized values, and mapping rationale |
+| Language | TypeScript (+ planned local Python worker for CAD PDFs) | Compile-time safety in API/rules + strong local spatial/CV PDF libraries on CPU |
+| Third-party APIs / Cloud AI | **Prohibited (`DEC-009`)** | Strict corporate confidentiality; legacy `groq-sdk` scheduled for removal in Phase 5 |
+| State | In-memory with temp file cleanup | No persistent database or order history required |
+| Mapping | Dynamic discovery + approved deterministic rules | Eliminates hardcoded lift prefixes (`C-`) and fixed aliases while keeping math deterministic |
+| Scanned / Handwritten Drawings | Region-anchored alignment + ink/markup detection + lightweight CPU OCR + cropped `REVIEW_REQUIRED` fallback | Customer returns are predominantly printed, handwritten, and scanned; avoids GPU/high-RAM local LLMs |
+| Comparison & MS2 Gate | Pure deterministic functions | Uncertain/handwritten items always route to `REVIEW_REQUIRED` — never auto-clear MS2 |
+| Reporting | Generated from structured results | Audit trail tracks sheet/page/cell/lift coordinates and MS2 impact |
 | Logging | Structured application logs | Redacts document content, tokens, and proprietary technical data |
-| Security Policy | Three-tier data gate | No real customer documents sent to external LLMs without authorization |
 
 ---
 
@@ -440,6 +436,18 @@ The report generator should not rerun extraction or implement a separate set of 
 It should consume the same result object used by the frontend and generate the selected export format.
 
 This guarantees that the report and UI represent the same comparison run.
+
+## 5.10 Drawing Extraction, Asymmetric Alignment & Clean Fallback (Phases 6–9)
+
+**Responsibility:** Process multi-page elevator group drawing PDFs locally on CPU-only workstations (~30% free RAM of 16 GB) without third-party APIs.
+
+### Key Mechanisms
+1. **Sheet & Floor-Chart Discovery:** Identify `G-SHEET`, `I-SHEET`, `LAYOUT_A_B`, and `FLOOR_CHART` pages dynamically from title blocks/headers; parse shared and split-stop floor charts per elevator.
+2. **Asymmetric View Tolerance:** Because local engineers may shift views left/right, resize elements, or update abbreviation/revision tables, comparison matches by **sheet identity, view anchors, table rows/columns, and spatial `(x, y)` callout proximity** rather than naive full-page pixel subtraction.
+3. **Scanned / Handwritten Customer Returns & Clean Fallback:**
+   - Detect scanned/low-text pages and basic Adobe text-edited PDFs automatically.
+   - Run lightweight CPU-only markup/ink segmentation + local CPU OCR (`RapidOCR` or `Tesseract`, ~100–300 MB RAM, zero GPU required) on changed or marked-up regions rather than requiring heavy local 7B+ LLMs.
+   - **Clean Fallback:** Whenever a markup is handwritten/illegible, a view shift is ambiguous, or OCR/rule confidence is below threshold, emit a **`REQUIRES_ENGINEERING_REVIEW`** finding containing the sheet/page/lift reference and a cropped side-by-side image of the exact region—never guessing values or auto-clearing MS2.
 
 ---
 

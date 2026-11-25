@@ -96,25 +96,56 @@ This file prevents repeated reconsideration of settled choices and helps future 
 
 ### DEC-007: Hybrid Groq LLM Semantic Interpretation & Provider Abstraction
 
-- **Status:** Accepted
+- **Status:** Superseded (by `DEC-009` on 2026-11-25)
 - **Context:** Customer TDS workbooks employ bespoke terminology, formatting, and elevator naming that differ from KONE KTOC specifications. Monolithic regex dictionary mapping is brittle, yet an LLM must not act as an ungrounded black-box compliance judge.
 - **Decision:** Implement a hybrid architecture. Deterministic parsers extract structured evidence into an intermediate model (`ExtractedEvidence`). Bounded requests are sent to a Groq-hosted LLM (`llama-3.3-70b-versatile`) strictly to interpret unmapped labels and propose canonical keys. Groq responses are validated with Zod against strict schemas. The final compliance status (`MATCH`/`MISMATCH`) is strictly computed by the deterministic comparison engine.
 - **Alternatives considered:** Pure rule-based regex engine (fails on unseen customer synonyms); end-to-end LLM document analysis (violates auditability, hallucinates dimensions, leaks confidential documents).
-- **Reasoning:** Provides semantic flexibility while guaranteeing 100% deterministic, auditable engineering decisions.
-- **Consequences:** Groq provider must sit behind an interface (`IGroqProvider`) with a hermetic `MockGroqProvider` for automated testing.
+- **Reasoning:** Superseded because corporate IT and confidentiality policies prohibit transmitting confidential documents or metadata to external cloud LLM APIs (Groq, Gemini, etc.).
+- **Consequences:** Retained only as historical context; `groq-sdk` and external Groq integration are scheduled for removal in Phase 5.
 - **Affected documents:** `SYSTEM_DESIGN.md`, `API_DESIGN.md`, `DOMAIN_RULES.md`, `TESTING.md`, `IMPLEMENTATION_PLAN.md`
 
 ### DEC-008: Mandatory Three-Tier Security Gate for Hosted LLMs
 
-- **Status:** Accepted
+- **Status:** Superseded (by `DEC-009` on 2026-11-25)
 - **Context:** KONE elevator designs, customer tenders, and KTOC specifications contain confidential commercial and engineering IP. Transmitting real production documents to external AI endpoints poses data leakage risks.
 - **Decision:** Enforce a strict three-tier execution and security gate:
   1. **Tier 1 (Local):** Local deterministic parsers, mock Groq provider, zero external network calls.
   2. **Tier 2 (Synthetic / Anonymized):** Redacted, synthetic fixtures tested against Groq in non-production environments.
   3. **Tier 3 (Production KONE Documents):** Hosted LLM transmission authorized only after signed corporate legal/data protection clearance.
-- **Reasoning:** Prevents accidental transmission of customer or KONE proprietary specifications without formal authorization.
-- **Consequences:** Production deployments default to Tier 1 mock or fallback unless explicitly configured with approved credentials and verified approval flags.
+- **Reasoning:** Superseded by `DEC-009` to establish an unconditional ban on all third-party cloud APIs across development and production.
+- **Consequences:** All processing must run strictly offline on local hardware with free, open-source tooling.
 - **Affected documents:** `SECURITY.md`, `LOGGING.md`, `IMPLEMENTATION_PLAN.md`
+
+### DEC-009: Strictly Offline, Zero-Third-Party-API Local Architecture
+
+- **Status:** Accepted
+- **Date:** 2026-11-25
+- **Context:** Uploaded TDS workbooks, KTOC forms, and engineering drawings contain highly confidential customer and KONE engineering data. Corporate IT policy strictly forbids sending any documents, parameters, or snippets to external third-party APIs (including Groq, Gemini, OpenAI, or cloud OCR services). Additionally, development and target hardware are CPU-only workstations without dedicated GPUs and constrained free RAM (~30% of 16 GB available during typical use).
+- **Decision:**
+  1. Completely remove `groq-sdk` and all external cloud AI/API integrations; prohibit outbound network calls during document processing.
+  2. All parsing, drawing comparison, OCR, and classification must run 100% locally using free, open-source components.
+  3. Do not require heavy local LLMs (e.g., 7B+ Ollama models) as a mandatory runtime dependency. Rely on deterministic structure-aware extraction, region/anchor-based comparison, lightweight CPU-friendly computer vision / local OCR when needed for scanned markups, and explicit `REVIEW_REQUIRED` flagging as the clean fallback. Any future local model assistance must remain strictly optional, bind only to `127.0.0.1`, and operate within workstation RAM/CPU limits.
+  4. Replace hardcoded mock mappings, dates, and elevator prefix assumptions with dynamic document discovery and explicit human-review flags for unresolved associations.
+- **Alternatives considered:** Tiered cloud API usage (`DEC-007`/`DEC-008` — violates corporate IT policy); mandatory local 7B+ VLM/LLM inference via Ollama (unfeasible on GPU-less laptops with ~4–5 GB free RAM).
+- **Reasoning:** Guarantees zero confidential data exfiltration, zero API cost, deterministic behavior, and reliable execution on standard KONE engineering laptops.
+- **Consequences:** Unrecognized handwritten notes or novel terminology route to `REVIEW_REQUIRED` with cropped visual/source evidence rather than speculative AI guesses.
+- **Affected documents:** `PRD.md`, `SYSTEM_DESIGN.md`, `SECURITY.md`, `DOMAIN_RULES.md`, `IMPLEMENTATION_PLAN.md`, `TESTING.md`
+- **Approval:** Approved by project owner (2026-11-25)
+
+### DEC-010: PDF-to-PDF Drawing Verification & MS2 Material-Order Impact Gate
+
+- **Status:** Accepted
+- **Date:** 2026-11-25
+- **Context:** Beyond TDS ↔ KTOC checks, engineering verification spans two drawing workflows: (a) comparing KTOC order specs against system-generated AutoCAD group PDFs, and (b) comparing Rev 1 Supply-Line drawings against Customer-Approved drawings to prepare "red-pen" feedback and determine whether changes impact the factory material order prior to Milestone 2 (`MS2` / `MS2D`). Customer-approved drawings always return as PDFs (predominantly printed, handwritten, and scanned back, or occasionally edited with basic Adobe text tools), and drawings often undergo asymmetric local layout shifts (shifted views, resized elements, revised abbreviation/revision tables).
+- **Decision:**
+  1. Standardize drawing ingestion on **PDF ↔ PDF** rather than proprietary `.dwg` CAD files, since customer approvals/redlines always arrive as PDFs.
+  2. Prioritize automated **per-group, per-elevator discrepancy extraction + MS2 Impact Classification** (`SUPPLY_LINE_IMPACT`, `LOCAL_CONSTRUCTION_ONLY`, `REQUIRES_ENGINEERING_REVIEW`) before attempting automated PDF red-pen annotation rendering.
+  3. Support multi-sheet group hierarchies (`G-sheet`, `I-sheet`, `A/B` layout sheets, shared and selective-stop `Floor Charts`) and asymmetric region-anchored comparison so physical view shifts do not trigger false page-wide failures.
+- **Alternatives considered:** Requiring `.dwg` CAD uploads (unsupported for customer returns, proprietary binary format); naive full-page pixel diffing (breaks when local engineers shift or resize views); immediate PDF red-pen auto-drawing (deferred until discrepancy detection accuracy is proven).
+- **Reasoning:** Directly automates the highest-effort manual verification bottleneck while preserving engineering safety at the MS2 release gate.
+- **Consequences:** Requires spatial PDF extraction, scanned-page markup region detection with lightweight CPU OCR fallback, and explicit MS2 impact rules verified against sample project documents.
+- **Affected documents:** `PRD.md`, `SYSTEM_DESIGN.md`, `API_DESIGN.md`, `DOMAIN_RULES.md`, `IMPLEMENTATION_PLAN.md`, `TESTING.md`
+- **Approval:** Approved by project owner (2026-11-25)
 
 ---
 

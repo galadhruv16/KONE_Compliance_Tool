@@ -52,23 +52,18 @@ A document may contain text that looks like instructions, code, or requests to d
 
 The system must not allow document content to override application rules, modify the approved mapping dictionary, invoke external services, or trigger unrelated operations.
 
-### 5.1 Groq LLM Security & Data Boundary Gate
+### 5.1 Strictly Offline Processing & Prohibited Third-Party APIs
 
-When integrating Groq or any hosted LLM provider:
-1. **Three-Tier Policy:**
-   - **Tier 1 (Hermetic Local Dev/Test):** Strict usage of `MockGroqProvider`. Zero outbound network packets containing document metadata.
-   - **Tier 2 (Synthetic / Redacted Fixtures):** Synthetic test documents executed with Groq API keys in sandboxed environments for benchmark validation.
-   - **Tier 3 (Production Customer Documents):** Sending actual customer TDS or KONE KTOC contents to Groq hosted infrastructure requires explicit signed data protection and legal clearance.
-2. **Untrusted Model Output Principle:**
-   - Groq output is untrusted input. Every response must pass strict Zod schema validation.
-   - Model-suggested canonical keys must be verified against the internal approved canonical whitelist. Unapproved keys are forcibly converted to `requiresHumanReview = true`.
-   - The LLM **never** determines `MATCH` or `MISMATCH`.
-3. **API Key Security:**
-   - `GROQ_API_KEY` is loaded strictly server-side from environment variables.
-   - Never expose `GROQ_API_KEY` to client-side bundles, API responses, or logs.
-4. **Prompt Injection Mitigation:**
-   - Prompts separate instructions from data using JSON serialization blocks.
-   - Bounded token limits and structured JSON mode (`response_format: { type: "json_object" }`) prevent prompt leakage or unconstrained execution.
+Per `DEC-009`, corporate IT and confidentiality policies strictly prohibit transmitting any customer or KONE documents, extracted labels, identifiers, or drawing images to external third-party APIs:
+1. **Zero Cloud APIs / External AI:**
+   - Cloud LLM and cloud OCR providers (including Groq, Google Gemini, OpenAI, Anthropic, or hosted document-intelligence APIs) are **strictly prohibited** in all environments.
+   - The legacy `groq-sdk` dependency and `GroqProvider` integration added during early prototyping must be removed (`Phase 5`), and no `GROQ_API_KEY`, `GEMINI_API_KEY`, or outbound AI credentials may be used or committed.
+2. **Local-Only Execution & Clean Fallback:**
+   - All document parsing, spatial extraction, image/region comparison, and lightweight CPU OCR must execute **100% locally** with zero outbound network traffic.
+   - Any optional local model assistance (if ever enabled later) must bind strictly to `127.0.0.1`, operate within CPU-only / limited-RAM constraints, and pass strict schema validation.
+   - When automated extraction or OCR confidence is insufficient (e.g., illegible handwriting on a scanned customer drawing), the system must fall back cleanly to `REVIEW_REQUIRED` with cropped visual/source evidence—never silently passing `MATCH` or `MS2_CLEAR`.
+3. **Untrusted Model / OCR Output Principle:**
+   - Extracted text, OCR strings, or optional local classifier suggestions are untrusted data. They **never** determine `MATCH`, `MISMATCH`, or `MS2_CLEAR` independently of deterministic rules.
 
 ## 6. Secrets and Configuration
 
@@ -134,8 +129,8 @@ Before release, verify:
 - [ ] Secrets are absent from the repository.
 - [ ] Logs do not expose document contents or credentials.
 - [ ] Errors do not expose stack traces to clients.
-- [ ] External document transmission is disabled unless authorized.
-- [ ] Dependencies comply with organizational restrictions.
+- [ ] Zero third-party cloud APIs (`groq-sdk`, Gemini, external OCR) or outbound network calls are present.
+- [ ] Dependencies comply with organizational restrictions and run locally offline.
 - [ ] The deployment environment and access boundaries have been reviewed.
 
 ## 12. Reporting a Security Issue
