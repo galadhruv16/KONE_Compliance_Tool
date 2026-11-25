@@ -58,10 +58,10 @@ Per `DEC-009`, corporate IT and confidentiality policies strictly prohibit trans
 1. **Zero Cloud APIs / External AI:**
    - Cloud LLM and cloud OCR providers (including Groq, Google Gemini, OpenAI, Anthropic, or hosted document-intelligence APIs) are **strictly prohibited** in all environments.
    - The legacy `groq-sdk` dependency and `GroqProvider` integration added during early prototyping must be removed (`Phase 5`), and no `GROQ_API_KEY`, `GEMINI_API_KEY`, or outbound AI credentials may be used or committed.
-2. **Local-Only Execution & Clean Fallback:**
-   - All document parsing, spatial extraction, image/region comparison, and lightweight CPU OCR must execute **100% locally** with zero outbound network traffic.
-   - Any optional local model assistance (if ever enabled later) must bind strictly to `127.0.0.1`, operate within CPU-only / limited-RAM constraints, and pass strict schema validation.
-   - When automated extraction or OCR confidence is insufficient (e.g., illegible handwriting on a scanned customer drawing), the system must fall back cleanly to `REVIEW_REQUIRED` with cropped visual/source evidence—never silently passing `MATCH` or `MS2_CLEAR`.
+2. **Local-Only Execution & Fail-Loudly Gate (`DEC-011`):**
+   - All document parsing, spatial extraction, image/region comparison, and local vision/OCR engines must execute **100% locally** with zero outbound network traffic.
+   - Any local AI/vision model must bind strictly to `127.0.0.1` and pass strict schema validation.
+   - **No inferior fallbacks:** Never substitute a low-accuracy OCR or heuristic to bypass hardware limits or unreadable pages. If a page requires a verified engine that cannot run reliably or fails verification, fail loudly with an explicit error—never silently pass `MATCH`, `MS2_CLEAR`, or an incomplete report disguised as verified.
 3. **Untrusted Model / OCR Output Principle:**
    - Extracted text, OCR strings, or optional local classifier suggestions are untrusted data. They **never** determine `MATCH`, `MISMATCH`, or `MS2_CLEAR` independently of deterministic rules.
 

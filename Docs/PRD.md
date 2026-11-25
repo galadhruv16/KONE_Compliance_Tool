@@ -107,7 +107,8 @@ For safety-critical or order-critical parameters, a high overall accuracy percen
 - Compare drawing specifications deterministically against agreed KTOC order parameters, dynamically aligning groups and elevator IDs.
 
 **Cross-Cutting Controls**
-- Operate **100% locally and offline** using free, open-source tools on CPU-only engineering workstations (~30% free RAM of 16 GB).
+- Operate **100% locally and offline** using free, open-source tools (`DEC-009`).
+- Enforce a **Fail-Loudly accuracy guarantee (`DEC-011`)**: zero silent fallback to inferior engines; report explicit hardware, capability, or page-verification errors upfront rather than risking missed discrepancies.
 - Log processing events, warnings, and errors without exposing confidential document data.
 - Clean up temporary files after processing or session termination.
 
@@ -116,7 +117,7 @@ For safety-critical or order-critical parameters, a high overall accuracy percen
 The application will not implement:
 
 - **Any third-party cloud APIs, external LLMs, or cloud OCR** (e.g., Groq, Gemini, OpenAI) — strictly forbidden by corporate confidentiality & IT policy (`DEC-009`).
-- Mandatory runtime dependence on GPU-heavy or large local LLMs that exceed CPU-only / limited-RAM workstation capacity.
+- Silent degradation to low-recall CPU heuristics or inferior OCR engines when hardware or page quality prevents verified extraction (`DEC-011`).
 - Automated `.dwg` CAD file parsing (customer returns are always PDFs; PDF ↔ PDF is the unified format).
 - Automatic drawing/overlay of red-pen annotations onto output PDF files in the initial release (deferred until discrepancy detection accuracy is proven).
 - User registration, authentication, authorization, or role management.
@@ -429,7 +430,7 @@ The application must compare Rev 1 Supply-Line Drawing PDFs against Customer-App
 
 - Support vector PDFs, basic Adobe text-edited PDFs, and printed/handwritten/scanned customer PDFs.
 - Tolerate local physical drawing adjustments (shifted views left/right, resized views, updated abbreviation tables, revision/date changes) using region-anchored comparison rather than naive full-page pixel matching.
-- Detect handwritten/redline markup regions on scanned pages locally on CPU and extract legible text via lightweight offline OCR where possible, falling back to cropped visual region inspection (`REVIEW_REQUIRED`) when handwriting is ambiguous or unreadable.
+- Detect handwritten/redline markup regions on scanned pages using a benchmarked, verified local vision/OCR engine; if required accuracy or hardware capability (RAM/GPU) is unavailable or alignment fails on any page, **halt and display an explicit blocking error** rather than degrading to an inferior fallback (`DEC-011`).
 - Output a per-group, per-elevator discrepancy checklist linking each finding to its sheet, page, elevator(s), and visual/text evidence.
 
 ### FR-13: MS2 Material-Order Impact Classification
@@ -896,7 +897,7 @@ The following items must be resolved using the actual documents and organization
 - [ ] Representative sample project documents (Supply-Line Group PDFs, handwritten/scanned Customer-Approved PDFs, and matching KTOC PDF) to validate sheet layouts and CAD nomenclature.
 - [ ] Approved KONE MS2 impact matrix defining which parameter/component categories trigger `SUPPLY_LINE_IMPACT` vs. `LOCAL_CONSTRUCTION_ONLY`.
 - [ ] Approved rule for regional code-standard differences (e.g., IS vs. EN passenger count equivalences).
-- [ ] Verified local CPU-only OCR library packaging (`RapidOCR` / `Tesseract` / `PyMuPDF`) within KONE workstation RAM limits (~30% free RAM on 16 GB).
+- [ ] Verified local vision/OCR accuracy benchmarks and explicit hardware requirements (GPU/RAM upgrade justification if CPU-only ~30% free RAM on 16 GB cannot guarantee zero missed discrepancies on scanned drawings).
 
 No unverified technical mapping or engineering tolerance should be promoted into a production rule merely to make the first version appear complete.
 

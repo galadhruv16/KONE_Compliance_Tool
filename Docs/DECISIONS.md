@@ -123,12 +123,12 @@ This file prevents repeated reconsideration of settled choices and helps future 
 - **Context:** Uploaded TDS workbooks, KTOC forms, and engineering drawings contain highly confidential customer and KONE engineering data. Corporate IT policy strictly forbids sending any documents, parameters, or snippets to external third-party APIs (including Groq, Gemini, OpenAI, or cloud OCR services). Additionally, development and target hardware are CPU-only workstations without dedicated GPUs and constrained free RAM (~30% of 16 GB available during typical use).
 - **Decision:**
   1. Completely remove `groq-sdk` and all external cloud AI/API integrations; prohibit outbound network calls during document processing.
-  2. All parsing, drawing comparison, OCR, and classification must run 100% locally using free, open-source components.
-  3. Do not require heavy local LLMs (e.g., 7B+ Ollama models) as a mandatory runtime dependency. Rely on deterministic structure-aware extraction, region/anchor-based comparison, lightweight CPU-friendly computer vision / local OCR when needed for scanned markups, and explicit `REVIEW_REQUIRED` flagging as the clean fallback. Any future local model assistance must remain strictly optional, bind only to `127.0.0.1`, and operate within workstation RAM/CPU limits.
+  2. All parsing, drawing comparison, vision/OCR, and classification must run 100% locally using free, open-source components.
+  3. **Zero Inferior Fallback (`DEC-011`):** Never degrade silently to low-accuracy heuristics or weak CPU OCR just to avoid an error. Use deterministic exact extraction for vector documents, and benchmark the highest-accuracy local engines for scanned/handwritten drawings. Where current hardware (CPU-only, ~30% free RAM of 16 GB) lacks the capability to run a required verified engine safely, surface an explicit capability/processing error upfront.
   4. Replace hardcoded mock mappings, dates, and elevator prefix assumptions with dynamic document discovery and explicit human-review flags for unresolved associations.
-- **Alternatives considered:** Tiered cloud API usage (`DEC-007`/`DEC-008` — violates corporate IT policy); mandatory local 7B+ VLM/LLM inference via Ollama (unfeasible on GPU-less laptops with ~4–5 GB free RAM).
-- **Reasoning:** Guarantees zero confidential data exfiltration, zero API cost, deterministic behavior, and reliable execution on standard KONE engineering laptops.
-- **Consequences:** Unrecognized handwritten notes or novel terminology route to `REVIEW_REQUIRED` with cropped visual/source evidence rather than speculative AI guesses.
+- **Alternatives considered:** Tiered cloud API usage (`DEC-007`/`DEC-008` — violates corporate IT policy); silent fallback to lightweight/inferior CPU OCR (creates unacceptable risk of missed discrepancies and costly wrong MS2 material orders).
+- **Reasoning:** Guarantees zero confidential data exfiltration, zero API cost, deterministic behavior, and zero silent accuracy compromises.
+- **Consequences:** If scanned/handwritten drawings require GPU-accelerated local Vision-Language Models that exceed current laptop hardware, the tool explicitly reports the limitation so management can justify hardware upgrades rather than shipping unsafe approximations.
 - **Affected documents:** `PRD.md`, `SYSTEM_DESIGN.md`, `SECURITY.md`, `DOMAIN_RULES.md`, `IMPLEMENTATION_PLAN.md`, `TESTING.md`
 - **Approval:** Approved by project owner (2026-11-25)
 
@@ -143,8 +143,23 @@ This file prevents repeated reconsideration of settled choices and helps future 
   3. Support multi-sheet group hierarchies (`G-sheet`, `I-sheet`, `A/B` layout sheets, shared and selective-stop `Floor Charts`) and asymmetric region-anchored comparison so physical view shifts do not trigger false page-wide failures.
 - **Alternatives considered:** Requiring `.dwg` CAD uploads (unsupported for customer returns, proprietary binary format); naive full-page pixel diffing (breaks when local engineers shift or resize views); immediate PDF red-pen auto-drawing (deferred until discrepancy detection accuracy is proven).
 - **Reasoning:** Directly automates the highest-effort manual verification bottleneck while preserving engineering safety at the MS2 release gate.
-- **Consequences:** Requires spatial PDF extraction, scanned-page markup region detection with lightweight CPU OCR fallback, and explicit MS2 impact rules verified against sample project documents.
+- **Consequences:** Requires spatial PDF extraction, verified local vision/OCR benchmarking for scanned/handwritten markups (`DEC-011`), and explicit MS2 impact rules verified against sample project documents.
 - **Affected documents:** `PRD.md`, `SYSTEM_DESIGN.md`, `API_DESIGN.md`, `DOMAIN_RULES.md`, `IMPLEMENTATION_PLAN.md`, `TESTING.md`
+- **Approval:** Approved by project owner (2026-11-25)
+
+### DEC-011: Fail-Loudly Policy — Accuracy Over Silent Fallback
+
+- **Status:** Accepted
+- **Date:** 2026-11-25
+- **Context:** A missed discrepancy or unflagged customer change before Milestone 2 (`MS2`) can result in an incorrect factory material order causing severe financial loss and reputational damage. Fallback mechanisms that substitute an inferior parser, low-recall OCR, or approximate heuristic can silently miss changes while presenting a seemingly complete report.
+- **Decision:**
+  1. **Zero Silent Degradation:** Never fall back to an inferior extraction/OCR/matching engine when the primary verified method cannot process a page or document reliably.
+  2. **Explicit Blocking Errors:** When extraction fails, alignment anchors fail on shifted views, a scanned/handwritten page lacks a verified high-accuracy local vision/OCR engine, or workstation hardware (CPU/RAM/GPU) cannot execute the required engine within tolerances, **halt and display an explicit blocking error** stating the exact failing pages and capability gap.
+  3. **Test With the Best Available Local Models:** During testing and benchmarking, evaluate the highest-accuracy free local open-source engines (including local Vision-Language Models / high-accuracy document parsers). Document hardware requirements objectively so management can approve GPU/memory upgrades if needed.
+- **Alternatives considered:** Degrading to lightweight CPU-only OCR or best-effort partial output with warnings (rejected — unacceptable risk of missed handwritten redlines).
+- **Reasoning:** An explicit error triggers immediate human verification or hardware escalation; a silent false negative causes wrong manufacturing orders.
+- **Consequences:** Scanned/handwritten pages will be explicitly blocked with a clear capability error unless a benchmarked, verified local vision/OCR engine is active and passes accuracy acceptance gates.
+- **Affected documents:** `PRD.md`, `SYSTEM_DESIGN.md`, `SECURITY.md`, `IMPLEMENTATION_PLAN.md`, `TESTING.md`
 - **Approval:** Approved by project owner (2026-11-25)
 
 ---

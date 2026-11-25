@@ -8,12 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2026-11-25
 
 ### Added
-- `DEC-009` in `Docs/DECISIONS.md`: Strictly Offline, Zero-Third-Party-API Local Architecture (supersedes `DEC-007` and `DEC-008`, mandates removal of `groq-sdk` and prohibits cloud LLMs/APIs; accounts for CPU-only / limited-RAM hardware).
+- `DEC-009` in `Docs/DECISIONS.md`: Strictly Offline, Zero-Third-Party-API Local Architecture (supersedes `DEC-007` and `DEC-008`, mandates removal of `groq-sdk` and prohibits cloud LLMs/APIs).
 - `DEC-010` in `Docs/DECISIONS.md`: PDF-to-PDF Drawing Verification & MS2 Material-Order Impact Gate prioritizing per-group/per-elevator discrepancy reporting over automated PDF red-pen markup rendering.
+- `DEC-011` in `Docs/DECISIONS.md`: Fail-Loudly Policy — Accuracy Over Silent Fallback (forbids substituting inferior fallback engines; mandates explicit blocking errors when required hardware/vision capability or verification certainty is missing).
 - Expanded `Docs/PRD.md` (`v2.0`, `FR-11`–`FR-14`), `Docs/DOMAIN_RULES.md` (Sections 13–14), `Docs/SYSTEM_DESIGN.md`, `Docs/API_DESIGN.md`, `Docs/SECURITY.md`, `Docs/TESTING.md`, and `Docs/IMPLEMENTATION_PLAN.md` to cover:
   - Supply-Line Drawing PDF ↔ Customer-Approved Drawing PDF ("Red-Pen Checklist") supporting printed/handwritten/scanned customer returns, basic Adobe text edits, asymmetric local view shifts, `G-sheet`/`I-sheet`/`A/B`/`Floor Chart` hierarchies, and `SUPPLY_LINE_IMPACT` vs. `LOCAL_CONSTRUCTION_ONLY` vs. `REQUIRES_ENGINEERING_REVIEW` MS2 classifications.
   - KTOC ↔ Supply-Line AutoCAD Group Drawing PDF verification.
-  - Clean fallback strategy for low-RAM CPU-only laptops without relying on heavy local LLMs.
+  - Zero-compromise fail-loudly policy requiring best-available local engines during testing and explicit capability/hardware reporting upfront.
 - Committed working frontend UI refinements (`frontend/index.html`, `frontend/src/App.tsx`, `frontend/src/components/ProcessingModal.tsx`, `frontend/src/pages/LandingPage.tsx`, `frontend/src/pages/ResultsDashboard.tsx`).
 
 ### Changed

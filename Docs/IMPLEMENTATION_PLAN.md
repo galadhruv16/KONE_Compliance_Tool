@@ -115,16 +115,16 @@ Do not implement every phase in one large coding-agent request.
 
 ### Objectives
 
-- Build a 100% local, CPU-only, low-RAM extractor for multi-page elevator group drawing PDFs (`G-sheet`, `I-sheet`, `A/B` layouts, and `Floor Charts` including split-stop lift columns).
-- Support both vector Supply-Line PDFs and Customer-Approved PDFs (predominantly printed, handwritten, and scanned back, plus basic Adobe text edits).
+- Build a 100% local extractor for multi-page elevator group drawing PDFs (`G-sheet`, `I-sheet`, `A/B` layouts, and `Floor Charts` including split-stop lift columns).
+- Support both vector Supply-Line PDFs and Customer-Approved PDFs (printed, handwritten, and scanned back, plus basic Adobe text edits).
 - Handle asymmetric local engineering shifts (shifted/resized views, modified abbreviation/revision tables) using region-anchored matching rather than naive pixel overlap.
-- Implement lightweight local CPU CV/OCR fallback with cropped markup region extraction.
+- Benchmark the highest-accuracy free local vision/OCR engines on sample scanned/handwritten drawings and enforce `DEC-011` (Fail Loudly with an explicit hardware/capability error if reliable verification cannot be achieved—zero inferior fallback).
 
 ### Acceptance criteria
 
-- Extracts sheet hierarchy, elevator groups, floor-stop matrices, and CAD nomenclature pairs from sample project PDFs.
-- Detects handwritten/scanned redline regions on customer PDFs within CPU-only and ~4 GB free RAM constraints.
-- Unreadable handwriting or shifted ambiguous regions reliably produce cropped `REVIEW_REQUIRED` items rather than false passes.
+- Extracts sheet hierarchy, elevator groups, floor-stop matrices, and CAD nomenclature pairs deterministically from vector drawings.
+- Accurately locates and reads customer markups on sample scanned drawings with zero missed critical discrepancies in benchmark evaluation, OR fails explicitly with documented hardware/model upgrade requirements (`DEC-011`).
+- Never silently skips an unreadable page or substitutes a low-recall heuristic.
 
 ## Phase 7: Drawing Revision Diff & MS2 Impact Engine ("Red-Pen Checklist")
 
@@ -168,19 +168,19 @@ Do not implement every phase in one large coding-agent request.
 - Group PDFs are matched dynamically to KTOC elevator groups.
 - Code-standard differences (e.g., IS vs. EN passenger calculations) and unmapped parameters flag `REVIEW_REQUIRED` unless explicitly covered by an approved rule.
 
-## Phase 10: Security, Memory Budget & End-to-End Validation
+## Phase 10: Security, Accuracy Benchmarking & End-to-End Validation
 
 ### Objectives
 
 - Verify upload limits, MIME/magic-byte validation, and temporary-file cleanup across all workflows.
 - Verify zero outbound network calls (strict IT compliance).
-- Benchmark memory and latency on CPU-only / ~30% free RAM (~4–5 GB) using real multi-page group PDFs.
+- Benchmark accuracy (zero missed discrepancies) and hardware utilization (CPU/RAM/GPU requirements) using real multi-page group PDFs, surfacing any upgrade requirements explicitly.
 - Run full unit, parser, API, and UI verification suites.
 
 ### Acceptance criteria
 
 - Zero third-party API calls or secret exposure.
-- Peak RAM and processing time remain stable on standard KONE development laptops.
+- Any unsupported hardware/engine constraint fails explicitly upfront (`DEC-011`).
 - All documented security and testing checklists pass honestly.
 
 ## 3. Phase Completion Rule

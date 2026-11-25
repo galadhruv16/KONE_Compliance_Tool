@@ -12,7 +12,7 @@
 | Backend | Node.js + Express + TypeScript (+ Planned Local Python Spatial/CV Worker) |
 | Input Formats | Excel (`.xlsx`, `.xls`), PDF (`.pdf` — vector CAD, Adobe edits, scanned/handwritten markups) |
 | Data Persistence | None in MVP |
-| Processing Model | Synchronous / Local CPU-only (Zero Third-Party APIs) |
+| Processing Model | Synchronous / Local Offline (Zero Third-Party APIs) |
 | Primary Responsibility | Extract, normalize, compare specs & drawings, and classify MS2 material-order impact |
 
 ---
@@ -94,7 +94,7 @@ flowchart TD
 
     VAL --> ORCH2[Drawing Revision & KTOC-Drawing Orchestrator]
     ORCH2 --> SP[Local Spatial PDF & Sheet Extractor - G/I/A/B/FloorCharts]
-    ORCH2 --> SC[Scanned Markup Detector & Lightweight CPU OCR Fallback]
+    ORCH2 --> SC[Scanned Markup & Local Vision Gate - Fails Loudly if Unverified]
     SP --> ALIGN[Region-Anchored Alignment - Tolerates Shifted/Resized Views]
     SC --> ALIGN
     ALIGN --> DIFF[Per-Group / Per-Lift Discrepancy & MS2 Impact Engine]
@@ -117,7 +117,7 @@ flowchart TD
 | Third-party APIs / Cloud AI | **Prohibited (`DEC-009`)** | Strict corporate confidentiality; legacy `groq-sdk` scheduled for removal in Phase 5 |
 | State | In-memory with temp file cleanup | No persistent database or order history required |
 | Mapping | Dynamic discovery + approved deterministic rules | Eliminates hardcoded lift prefixes (`C-`) and fixed aliases while keeping math deterministic |
-| Scanned / Handwritten Drawings | Region-anchored alignment + ink/markup detection + lightweight CPU OCR + cropped `REVIEW_REQUIRED` fallback | Customer returns are predominantly printed, handwritten, and scanned; avoids GPU/high-RAM local LLMs |
+| Scanned / Handwritten Drawings | Region-anchored alignment + verified local vision/OCR engine; **no inferior fallback (`DEC-011`)** | Customer returns are predominantly printed, handwritten, and scanned; must surface capability/hardware errors explicitly rather than silently missing changes |
 | Comparison & MS2 Gate | Pure deterministic functions | Uncertain/handwritten items always route to `REVIEW_REQUIRED` — never auto-clear MS2 |
 | Reporting | Generated from structured results | Audit trail tracks sheet/page/cell/lift coordinates and MS2 impact |
 | Logging | Structured application logs | Redacts document content, tokens, and proprietary technical data |
@@ -437,17 +437,18 @@ It should consume the same result object used by the frontend and generate the s
 
 This guarantees that the report and UI represent the same comparison run.
 
-## 5.10 Drawing Extraction, Asymmetric Alignment & Clean Fallback (Phases 6–9)
+## 5.10 Drawing Extraction, Asymmetric Alignment & Fail-Loudly Policy (Phases 6–9)
 
-**Responsibility:** Process multi-page elevator group drawing PDFs locally on CPU-only workstations (~30% free RAM of 16 GB) without third-party APIs.
+**Responsibility:** Process multi-page elevator group drawing PDFs locally without third-party APIs while enforcing zero silent accuracy compromises (`DEC-011`).
 
 ### Key Mechanisms
 1. **Sheet & Floor-Chart Discovery:** Identify `G-SHEET`, `I-SHEET`, `LAYOUT_A_B`, and `FLOOR_CHART` pages dynamically from title blocks/headers; parse shared and split-stop floor charts per elevator.
 2. **Asymmetric View Tolerance:** Because local engineers may shift views left/right, resize elements, or update abbreviation/revision tables, comparison matches by **sheet identity, view anchors, table rows/columns, and spatial `(x, y)` callout proximity** rather than naive full-page pixel subtraction.
-3. **Scanned / Handwritten Customer Returns & Clean Fallback:**
+3. **Scanned / Handwritten Customer Returns & Zero-Compromise Error Gate:**
    - Detect scanned/low-text pages and basic Adobe text-edited PDFs automatically.
-   - Run lightweight CPU-only markup/ink segmentation + local CPU OCR (`RapidOCR` or `Tesseract`, ~100–300 MB RAM, zero GPU required) on changed or marked-up regions rather than requiring heavy local 7B+ LLMs.
-   - **Clean Fallback:** Whenever a markup is handwritten/illegible, a view shift is ambiguous, or OCR/rule confidence is below threshold, emit a **`REQUIRES_ENGINEERING_REVIEW`** finding containing the sheet/page/lift reference and a cropped side-by-side image of the exact region—never guessing values or auto-clearing MS2.
+   - Evaluate and benchmark the highest-accuracy free local vision/OCR engines during testing.
+   - **No Inferior Fallback (`DEC-011`):** Never substitute a low-accuracy CPU heuristic or degraded OCR engine when hardware limits (e.g., GPU-less laptop with ~30% free RAM) or dense handwriting prevent reliable verification. Instead, return an explicit blocking error (`CAPABILITY_OR_HARDWARE_REQUIRED` / `UNVERIFIED_DRAWING_PAGE`) identifying the exact failing pages and capability requirement so engineering never receives false confidence and management has concrete justification for hardware upgrades.
+   - When an extracted item is syntactically readable but engineering impact is ambiguous, emit `REQUIRES_ENGINEERING_REVIEW` with cropped region evidence—never auto-clearing MS2.
 
 ---
 
